@@ -5,6 +5,7 @@ A conversational AI that turns natural language questions into SQL queries, visu
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
 ![Claude](https://img.shields.io/badge/Claude-Sonnet_4-purple)
+![Gemini](https://img.shields.io/badge/Gemini-2.0_Flash-blue)
 ![SQLite](https://img.shields.io/badge/SQLite-3-green)
 
 ## Quick Start (30 seconds)
@@ -12,13 +13,24 @@ A conversational AI that turns natural language questions into SQL queries, visu
 ```bash
 git clone <repo-url> && cd querypal
 cp .env.example .env.local
-# Add your ANTHROPIC_API_KEY to .env.local
+# Edit .env.local — set AI_PROVIDER and the matching API key (see below)
 npm install
 npm run seed
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and start asking questions.
+
+### LLM Provider Config
+
+QueryPal supports **Gemini** and **Claude** as LLM backends. Set `AI_PROVIDER` in `.env.local`:
+
+| Provider | Env vars needed |
+|---|---|
+| **Gemini** (default) | `AI_PROVIDER=gemini` + `GOOGLE_API_KEY` |
+| **Claude** | `AI_PROVIDER=claude` + `ANTHROPIC_API_KEY` |
+
+You can also override the model with `GEMINI_MODEL` or `CLAUDE_MODEL` env vars.
 
 ## What It Does
 
@@ -133,7 +145,7 @@ src/
 | TypeScript | Type safety across the entire pipeline |
 | TailwindCSS + shadcn/ui | Beautiful UI without dependency lock-in |
 | better-sqlite3 | Zero-setup, ships in repo, synchronous for simple API routes |
-| @anthropic-ai/sdk (Claude Sonnet 4) | Structured JSON output, prompt caching, fast inference |
+| @anthropic-ai/sdk + @google/generative-ai | Multi-provider: Claude Sonnet 4 or Gemini 2.0 Flash, configurable via env |
 | Recharts | Best React charting library for analytics visualizations |
 
 ## Testing

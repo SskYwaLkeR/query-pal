@@ -1,6 +1,6 @@
 import {
   buildResultSummary,
-  buildMessagesForClaude,
+  buildMessagesForLLM,
 } from "@/lib/ai/context-manager";
 
 describe("buildResultSummary", () => {
@@ -44,15 +44,14 @@ describe("buildResultSummary", () => {
   });
 });
 
-describe("buildMessagesForClaude", () => {
-  it("includes system prompt with cache control", () => {
-    const { system } = buildMessagesForClaude("You are a DB assistant", [], "hello");
-    expect(system[0].text).toBe("You are a DB assistant");
-    expect(system[0].cache_control).toEqual({ type: "ephemeral" });
+describe("buildMessagesForLLM", () => {
+  it("returns the system prompt as a plain string", () => {
+    const { systemPrompt } = buildMessagesForLLM("You are a DB assistant", [], "hello");
+    expect(systemPrompt).toBe("You are a DB assistant");
   });
 
   it("appends current message as the last user message", () => {
-    const { messages } = buildMessagesForClaude("system", [], "What tables exist?");
+    const { messages } = buildMessagesForLLM("system", [], "What tables exist?");
     expect(messages).toHaveLength(1);
     expect(messages[0].role).toBe("user");
     expect(messages[0].content).toBe("What tables exist?");
@@ -68,7 +67,7 @@ describe("buildMessagesForClaude", () => {
         resultSummary: "1 row. count=150.",
       },
     ];
-    const { messages } = buildMessagesForClaude("system", history, "Break down by country");
+    const { messages } = buildMessagesForLLM("system", history, "Break down by country");
     expect(messages).toHaveLength(3);
     expect(messages[1].content).toContain("SQL executed:");
     expect(messages[1].content).toContain("Result: 1 row");
@@ -80,8 +79,7 @@ describe("buildMessagesForClaude", () => {
       role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
       content: `Message ${i}`,
     }));
-    const { messages } = buildMessagesForClaude("system", longHistory, "next question");
-    // 20 from history + 1 current = 21
+    const { messages } = buildMessagesForLLM("system", longHistory, "next question");
     expect(messages).toHaveLength(21);
   });
 });

@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { LLMMessage } from "./providers";
 
 let client: Anthropic | null = null;
 
@@ -11,15 +12,21 @@ function getClient(): Anthropic {
 }
 
 export async function callClaude(
-  system: Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }>,
-  messages: Array<{ role: "user" | "assistant"; content: string }>
+  systemPrompt: string,
+  messages: LLMMessage[]
 ): Promise<string> {
   const anthropic = getClient();
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: process.env.CLAUDE_MODEL || "claude-sonnet-4-20250514",
     max_tokens: 2048,
-    system,
+    system: [
+      {
+        type: "text" as const,
+        text: systemPrompt,
+        cache_control: { type: "ephemeral" as const },
+      },
+    ],
     messages,
   });
 

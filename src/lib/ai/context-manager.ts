@@ -1,4 +1,5 @@
 import { ConversationTurn } from "@/types/chat";
+import { LLMMessage } from "./providers";
 
 const MAX_HISTORY_TURNS = 10;
 
@@ -15,18 +16,15 @@ export function buildResultSummary(
   }
 
   if (rows.length > 0 && rows.length <= 5) {
-    // For small result sets, include all values
     for (const row of rows) {
       const vals = columns.map((c) => `${c}=${row[c]}`).join(", ");
       parts.push(`  ${vals}`);
     }
   } else if (rows.length > 5) {
-    // For larger sets, summarize
     const firstRow = rows[0];
     const vals = columns.map((c) => `${c}=${firstRow[c]}`).join(", ");
     parts.push(`Top result: ${vals}`);
 
-    // Include numeric totals
     for (const col of columns) {
       const values = rows.map((r) => r[col]);
       if (values.every((v) => typeof v === "number")) {
@@ -40,14 +38,14 @@ export function buildResultSummary(
   return parts.join(" ");
 }
 
-export function buildMessagesForClaude(
+export function buildMessagesForLLM(
   systemPrompt: string,
   history: ConversationTurn[],
   currentMessage: string
-): { system: Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }>; messages: Array<{ role: "user" | "assistant"; content: string }> } {
+): { systemPrompt: string; messages: LLMMessage[] } {
   const truncatedHistory = history.slice(-MAX_HISTORY_TURNS * 2);
 
-  const messages: Array<{ role: "user" | "assistant"; content: string }> = [];
+  const messages: LLMMessage[] = [];
 
   for (const turn of truncatedHistory) {
     if (turn.role === "user") {
@@ -66,14 +64,5 @@ export function buildMessagesForClaude(
 
   messages.push({ role: "user", content: currentMessage });
 
-  return {
-    system: [
-      {
-        type: "text" as const,
-        text: systemPrompt,
-        cache_control: { type: "ephemeral" as const },
-      },
-    ],
-    messages,
-  };
+  return { systemPrompt, messages };
 }

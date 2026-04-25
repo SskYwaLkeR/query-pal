@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getReadonlyDb } from "@/lib/db/connection";
 import { getSchema } from "@/lib/db/schema-introspector";
 import { buildSystemPrompt } from "@/lib/ai/prompts";
-import { callClaude } from "@/lib/ai/claude-client";
+import { getLLMProvider } from "@/lib/ai/providers";
 import {
-  buildMessagesForClaude,
+  buildMessagesForLLM,
   buildResultSummary,
 } from "@/lib/ai/context-manager";
 import { parseResponse } from "@/lib/ai/response-parser";
@@ -31,16 +31,17 @@ export async function POST(request: NextRequest) {
     const systemPrompt = buildSystemPrompt(schema.summary);
 
     // 2. Build messages with conversation context
-    const { system, messages } = buildMessagesForClaude(
+    const { systemPrompt: system, messages } = buildMessagesForLLM(
       systemPrompt,
       conversationHistory || [],
       message
     );
 
-    // 3. Call Claude
-    let claudeRaw: string;
+    // 3. Call LLM (Claude or Gemini, based on AI_PROVIDER env)
+    let llmRaw: string;
     try {
-      claudeRaw = await callClaude(system, messages);
+      const callLLM = getLLMProvider();
+      llmRaw = await callLLM(system, messages);
     } catch (error) {
       db.close();
       const errMsg =
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Parse response
-    const parsed = parseResponse(claudeRaw);
+    const parsed = parseResponse(llmRaw);
 
     // 5. Handle clarification
     if (parsed.clarification_needed) {
