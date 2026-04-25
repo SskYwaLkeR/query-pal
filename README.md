@@ -4,6 +4,7 @@ A conversational AI that turns natural language questions into SQL queries, visu
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![Ollama](https://img.shields.io/badge/Ollama-Local-green)
 ![Claude](https://img.shields.io/badge/Claude-Sonnet_4-purple)
 ![Gemini](https://img.shields.io/badge/Gemini-2.0_Flash-blue)
 ![SQLite](https://img.shields.io/badge/SQLite-3-green)
@@ -23,14 +24,22 @@ Open [http://localhost:3000](http://localhost:3000) and start asking questions.
 
 ### LLM Provider Config
 
-QueryPal supports **Gemini** and **Claude** as LLM backends. Set `AI_PROVIDER` in `.env.local`:
+QueryPal supports **Ollama** (free, local), **Gemini**, and **Claude**. Set `AI_PROVIDER` in `.env.local`:
 
-| Provider | Env vars needed |
-|---|---|
-| **Gemini** (default) | `AI_PROVIDER=gemini` + `GOOGLE_API_KEY` |
-| **Claude** | `AI_PROVIDER=claude` + `ANTHROPIC_API_KEY` |
+| Provider | Env vars needed | Cost |
+|---|---|---|
+| **Ollama** (default) | `AI_PROVIDER=ollama` | Free — runs locally |
+| **Gemini** | `AI_PROVIDER=gemini` + `GOOGLE_API_KEY` | Free tier available |
+| **Claude** | `AI_PROVIDER=claude` + `ANTHROPIC_API_KEY` | Paid |
 
-You can also override the model with `GEMINI_MODEL` or `CLAUDE_MODEL` env vars.
+**Ollama setup** (recommended for local dev):
+```bash
+# Install Ollama: https://ollama.com
+ollama pull qwen2.5-coder:14b   # Best for NL-to-SQL (needs ~10GB RAM)
+ollama serve                     # Starts on localhost:11434
+```
+
+Override the model with `OLLAMA_MODEL`, `GEMINI_MODEL`, or `CLAUDE_MODEL` env vars.
 
 ## What It Does
 
@@ -46,7 +55,7 @@ You can also override the model with `GEMINI_MODEL` or `CLAUDE_MODEL` env vars.
 ```
 User types a question
   → Context Manager (assembles conversation history + schema context)
-  → Claude API (generates SQL + explanation + chart type + follow-ups)
+  → LLM (Ollama/Gemini/Claude — generates SQL + explanation + chart type + follow-ups)
   → SQL Validator (read-only check, keyword blocklist, injection prevention)
   → SQLite Executor (safe execution with LIMIT + timeout)
   → Chart Recommender (LLM suggestion validated by data-shape heuristic)
@@ -145,7 +154,7 @@ src/
 | TypeScript | Type safety across the entire pipeline |
 | TailwindCSS + shadcn/ui | Beautiful UI without dependency lock-in |
 | better-sqlite3 | Zero-setup, ships in repo, synchronous for simple API routes |
-| @anthropic-ai/sdk + @google/generative-ai | Multi-provider: Claude Sonnet 4 or Gemini 2.0 Flash, configurable via env |
+| Ollama / @anthropic-ai/sdk / @google/generative-ai | Multi-provider: Ollama (local), Claude, or Gemini — configurable via env |
 | Recharts | Best React charting library for analytics visualizations |
 
 ## Testing

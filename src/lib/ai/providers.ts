@@ -22,9 +22,14 @@ export function getLLMProvider(): CallLLM {
       const { callGemini } = require("./gemini-client");
       return callGemini;
     }
+    case "ollama":
+    case "local": {
+      const { callOllama } = require("./ollama-client");
+      return callOllama;
+    }
     default:
       throw new Error(
-        `Unknown AI_PROVIDER: "${provider}". Use "claude" or "gemini".`
+        `Unknown AI_PROVIDER: "${provider}". Use "claude", "gemini", or "ollama".`
       );
   }
 }
