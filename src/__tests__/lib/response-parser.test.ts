@@ -56,4 +56,28 @@ describe("parseResponse", () => {
     expect(result.follow_up_suggestions).toEqual([]);
     expect(result.clarification_needed).toBe(false);
   });
+
+  it("extracts JSON embedded in prose (local model workaround)", () => {
+    const raw = `Here is the query to answer your question:
+
+\`\`\`json
+{"sql": "SELECT COUNT(*) FROM customers", "explanation": "Counting customers"}
+\`\`\`
+
+This will count all customers in the database.`;
+    const result = parseResponse(raw);
+    expect(result.sql).toBe("SELECT COUNT(*) FROM customers");
+    expect(result.explanation).toBe("Counting customers");
+  });
+
+  it("extracts JSON from prose without code fences (brace matching)", () => {
+    const raw = `To find the answer, here is the SQL:
+
+{"sql": "SELECT COUNT(*) AS total FROM orders", "explanation": "Counting orders", "follow_up_suggestions": ["Break down by month"]}
+
+This gives you the total number of orders.`;
+    const result = parseResponse(raw);
+    expect(result.sql).toBe("SELECT COUNT(*) AS total FROM orders");
+    expect(result.follow_up_suggestions).toEqual(["Break down by month"]);
+  });
 });
