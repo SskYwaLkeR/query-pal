@@ -1,7 +1,11 @@
 import { ConversationTurn } from "@/types/chat";
+import { SchemaInfo, TableInfo, Relationship } from "@/types/schema";
 import { LLMMessage } from "./providers";
 
 const MAX_HISTORY_TURNS = 10;
+const MAX_SCHEMA_TOKENS = 4000;
+const PRUNE_THRESHOLD_TOKENS = 3000;
+const CHARS_PER_TOKEN = 4;
 
 export function buildResultSummary(
   columns: string[],
@@ -68,4 +72,127 @@ export function buildMessagesForLLM(
   });
 
   return { systemPrompt, messages };
+}
+
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / CHARS_PER_TOKEN);
+}
+
+function findRelevantTables(
+  tables: TableInfo[],
+  userMessage: string,
+  history: ConversationTurn[]
+): Set<string> {
+  const relevant = new Set<string>();
+  const allText = [
+    userMessage,
+    ...history.slice(-6).map((t) => t.content),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  for (const table of tables) {
+    const nameVariants = [
+      table.name.toLowerCase(),
+      table.name.replace(/_/g, " ").toLowerCase(),
+      table.name.replace(/_/g, "").toLowerCase(),
+    ];
+    if (nameVariants.some((v) => allText.includes(v))) {
+      relevant.add(table.name);
+    }
+    for (const col of table.columns) {
+      const colName = col.name.replace(/_/g, " ").toLowerCase();
+      if (allText.includes(colName) && colName.length > 3) {
+        relevant.add(table.name);
+        break;
+      }
+    }
+  }
+
+  for (const table of tables) {
+    if (!relevant.has(table.name)) continue;
+    for (const col of table.columns) {
+      if (col.foreignTable && tables.some((t) => t.name === col.foreignTable)) {
+        relevant.add(col.foreignTable);
+      }
+    }
+  }
+
+  return relevant;
+}
+
+function buildCompactTableLine(table: TableInfo): string {
+  const cols = table.columns.map((c) => c.name).join(", ");
+  return `Table: ${table.name} (${table.rowCount} rows) — columns: ${cols}`;
+}
+
+function buildDetailedTableBlock(
+  table: TableInfo,
+  relationships: Relationship[]
+): string {
+  const parts: string[] = [];
+  parts.push(`Table: ${table.name} (${table.rowCount} rows)`);
+  for (const col of table.columns) {
+    let desc = `  - ${col.name}: ${col.type}`;
+    if (col.isPrimaryKey) desc += " PRIMARY KEY";
+    if (col.isForeignKey && col.foreignTable) {
+      desc += ` → ${col.foreignTable}.${col.foreignColumn}`;
+    }
+    if (col.sampleValues && col.sampleValues.length > 0) {
+      desc += ` (values: ${col.sampleValues.join(", ")})`;
+    }
+    parts.push(desc);
+  }
+  return parts.join("\n");
+}
+
+export function pruneSchemaForContext(
+  schema: SchemaInfo,
+  userMessage: string,
+  history: ConversationTurn[]
+): string {
+  if (estimateTokens(schema.summary) <= PRUNE_THRESHOLD_TOKENS) {
+    return schema.summary;
+  }
+
+  const relevant = findRelevantTables(schema.tables, userMessage, history);
+
+  const parts: string[] = ["DATABASE SCHEMA:", ""];
+
+  if (relevant.size === 0) {
+    parts.push(
+      `This database has ${schema.tables.length} tables. Ask about a specific table or topic for detailed column info.`
+    );
+    parts.push("");
+  }
+
+  for (const table of schema.tables) {
+    if (relevant.has(table.name)) {
+      parts.push(buildDetailedTableBlock(table, schema.relationships));
+    } else {
+      parts.push(buildCompactTableLine(table));
+    }
+    parts.push("");
+  }
+
+  const rels = schema.relationships.filter(
+    (r) => relevant.has(r.fromTable) || relevant.has(r.toTable)
+  );
+  if (rels.length > 0) {
+    parts.push("RELATIONSHIPS:");
+    for (const rel of rels) {
+      parts.push(
+        `  - ${rel.fromTable}.${rel.fromColumn} → ${rel.toTable}.${rel.toColumn} (many-to-one)`
+      );
+    }
+    parts.push("");
+  }
+
+  let result = parts.join("\n");
+  const maxChars = MAX_SCHEMA_TOKENS * CHARS_PER_TOKEN;
+  if (result.length > maxChars) {
+    result = result.slice(0, maxChars) + "\n... (schema truncated, ask about specific tables)";
+  }
+
+  return result;
 }

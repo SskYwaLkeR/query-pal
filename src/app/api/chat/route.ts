@@ -4,6 +4,7 @@ import { getLLMProvider } from "@/lib/ai/providers";
 import {
   buildMessagesForLLM,
   buildResultSummary,
+  pruneSchemaForContext,
 } from "@/lib/ai/context-manager";
 import { parseResponse } from "@/lib/ai/response-parser";
 import { validateSQL } from "@/lib/sql/validator";
@@ -13,6 +14,7 @@ import {
   getAdapter,
   getSchemaForConnection,
 } from "@/lib/db/connection-manager";
+import { QueryTimeoutError } from "@/lib/db/adapter";
 import { ChatRequest, ChatResponse } from "@/types/chat";
 
 export async function POST(request: NextRequest) {
@@ -30,7 +32,12 @@ export async function POST(request: NextRequest) {
     // 1. Get adapter and schema for the selected database
     const adapter = await getAdapter(databaseId);
     const schema = await getSchemaForConnection(databaseId);
-    const systemPrompt = buildSystemPrompt(schema.summary, adapter.dialect);
+    const schemaSummary = pruneSchemaForContext(
+      schema,
+      message,
+      conversationHistory || []
+    );
+    const systemPrompt = buildSystemPrompt(schemaSummary, adapter.dialect);
 
     // 2. Build messages with conversation context
     const { systemPrompt: system, messages } = buildMessagesForLLM(
@@ -144,6 +151,18 @@ export async function POST(request: NextRequest) {
         resultSummary: summary,
       } satisfies ChatResponse);
     } catch (dbError) {
+      if (dbError instanceof QueryTimeoutError) {
+        return NextResponse.json({
+          type: "error",
+          message: dbError.message,
+          sql: parsed.sql ?? undefined,
+          explanation: parsed.explanation ?? undefined,
+          followUps: [
+            "Try a simpler version of this query",
+            "Add a date filter to narrow results",
+          ],
+        } satisfies ChatResponse);
+      }
       const errMsg =
         dbError instanceof Error ? dbError.message : "Query execution failed";
       return NextResponse.json({
