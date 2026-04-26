@@ -101,7 +101,6 @@ export function seedDatabase() {
     "France",
     "Singapore",
   ];
-  const plans = ["free", "starter", "professional", "enterprise"];
   const industries = [
     "SaaS",
     "E-commerce",
@@ -360,7 +359,6 @@ export function seedDatabase() {
     "Account upgrade request",
   ];
 
-  const ticketStatuses = ["open", "in_progress", "resolved", "closed"];
   const priorities = ["low", "medium", "high", "critical"];
 
   // Get churned customer IDs for correlation

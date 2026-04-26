@@ -1,4 +1,4 @@
-import { Pool, PoolClient } from "pg";
+import { Pool } from "pg";
 import { DatabaseAdapter, QUERY_TIMEOUT_MS, QueryTimeoutError } from "../adapter";
 import {
   ColumnInfo,

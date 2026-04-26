@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { ConnectionConfig } from "@/types/connection";
 
 type FormData = {
@@ -29,7 +30,7 @@ export function AdminPanel() {
   const [testError, setTestError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const fetchConnections = useCallback(async () => {
+  async function fetchConnections() {
     try {
       const res = await fetch("/api/connections");
       const data = await res.json();
@@ -39,11 +40,23 @@ export function AdminPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }
 
   useEffect(() => {
-    fetchConnections();
-  }, [fetchConnections]);
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch("/api/connections", { signal: controller.signal });
+        const data = await res.json();
+        if (Array.isArray(data)) setConnections(data);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, []);
 
   function openAdd() {
     setEditingId(null);
@@ -152,7 +165,7 @@ export function AdminPanel() {
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <a
+            <Link
               href="/"
               className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted transition-colors"
               title="Back to chat"
@@ -167,7 +180,7 @@ export function AdminPanel() {
               >
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
-            </a>
+            </Link>
             <h1 className="text-lg font-semibold">Manage Connections</h1>
           </div>
           <button
