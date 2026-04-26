@@ -24,7 +24,7 @@ export function MessageList({
 
   return (
     <ScrollArea className="flex-1">
-      <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="max-w-3xl mx-auto px-5 py-6">
         {messages.map((msg) => (
           <MessageBubble
             key={msg.id}

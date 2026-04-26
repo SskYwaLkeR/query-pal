@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, KeyboardEvent } from "react";
-import { Button } from "@/components/ui/button";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -38,40 +37,41 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   };
 
   return (
-    <div className="flex items-end gap-2 p-4 border-t bg-background">
-      <textarea
-        ref={textareaRef}
-        value={input}
-        onChange={(e) => {
-          setInput(e.target.value);
-          handleInput();
-        }}
-        onKeyDown={handleKeyDown}
-        placeholder="Ask a question about your data..."
-        disabled={disabled}
-        rows={1}
-        className="flex-1 resize-none rounded-lg border border-input bg-transparent px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-      />
-      <Button
-        onClick={handleSend}
-        disabled={disabled || !input.trim()}
-        size="icon"
-        className="h-11 w-11 shrink-0"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-4 w-4"
+    <div className="p-4 bg-gradient-to-t from-background via-background to-transparent">
+      <div className="flex items-end gap-2 max-w-3xl mx-auto w-full rounded-2xl border border-border bg-card/80 backdrop-blur-sm p-2 transition-all focus-within:border-primary/30 focus-within:glow-input">
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(e) => {
+            setInput(e.target.value);
+            handleInput();
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask me anything about your data..."
+          disabled={disabled}
+          rows={1}
+          className="flex-1 resize-none bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none disabled:opacity-50 border-0"
+        />
+        <button
+          onClick={handleSend}
+          disabled={disabled || !input.trim()}
+          className="h-9 w-9 shrink-0 rounded-xl gradient-primary text-white flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-40 cursor-pointer"
         >
-          <path d="m22 2-7 20-4-9-9-4Z" />
-          <path d="M22 2 11 13" />
-        </svg>
-      </Button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <path d="m22 2-7 20-4-9-9-4Z" />
+            <path d="M22 2 11 13" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

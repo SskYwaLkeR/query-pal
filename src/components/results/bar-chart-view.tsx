@@ -24,7 +24,13 @@ export function BarChartView({ data, chart }: BarChartViewProps) {
     <div className="w-full h-64">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data.rows} margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+          <defs>
+            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f43f5e" stopOpacity={1} />
+              <stop offset="100%" stopColor="#f43f5e" stopOpacity={0.5} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" className="stroke-border" opacity={0.3} />
           <XAxis
             dataKey={xKey}
             tick={{ fontSize: 12 }}
@@ -40,16 +46,17 @@ export function BarChartView({ data, chart }: BarChartViewProps) {
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "8px",
+              backgroundColor: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: "12px",
               fontSize: "12px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
             }}
           />
           <Bar
             dataKey={yKey}
-            fill="hsl(var(--primary))"
-            radius={[4, 4, 0, 0]}
+            fill="url(#barGradient)"
+            radius={[6, 6, 0, 0]}
           />
         </BarChart>
       </ResponsiveContainer>

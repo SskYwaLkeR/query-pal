@@ -13,28 +13,23 @@ export function MessageBubble({ message, onSuggestedQuery }: MessageBubbleProps)
   if (message.role === "user") {
     return (
       <div className="flex justify-end mb-4">
-        <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-2.5 text-sm">
+        <div className="max-w-[80%] rounded-2xl rounded-tr-sm gradient-user-bubble text-white px-4 py-2.5 text-sm shadow-md shadow-primary/10">
           {message.content}
         </div>
       </div>
     );
   }
 
-  // Assistant message
   return (
     <div className="flex justify-start mb-4">
       <div className="max-w-[90%] w-full">
-        {/* Assistant icon */}
         <div className="flex items-start gap-3">
-          <div className="shrink-0 w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center mt-0.5">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4 text-primary">
-              <ellipse cx="12" cy="5" rx="9" ry="3" />
-              <path d="M3 5V19A9 3 0 0 0 21 19V5" />
-              <path d="M3 12A9 3 0 0 0 21 12" />
+          <div className="shrink-0 w-8 h-8 rounded-xl gradient-primary flex items-center justify-center mt-0.5 shadow-sm shadow-primary/20">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" className="w-4 h-4">
+              <path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74L12 2z" />
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            {/* Error state */}
             {message.type === "error" && (
               <div className="text-sm">
                 <div className="text-destructive/80 whitespace-pre-wrap">
@@ -44,9 +39,9 @@ export function MessageBubble({ message, onSuggestedQuery }: MessageBubbleProps)
                   <div className="mt-3">
                     <details className="text-xs text-muted-foreground">
                       <summary className="cursor-pointer hover:text-foreground">
-                        View generated SQL
+                        View generated query
                       </summary>
-                      <pre className="mt-2 p-2 rounded bg-muted font-mono text-xs overflow-x-auto">
+                      <pre className="mt-2 p-2 rounded-lg bg-muted font-mono text-xs overflow-x-auto">
                         {message.sql}
                       </pre>
                     </details>
@@ -55,12 +50,10 @@ export function MessageBubble({ message, onSuggestedQuery }: MessageBubbleProps)
               </div>
             )}
 
-            {/* Clarification state */}
             {message.type === "clarification" && (
               <div className="text-sm whitespace-pre-wrap">{message.content}</div>
             )}
 
-            {/* Success state */}
             {message.type === "success" && (
               <div>
                 <p className="text-sm text-foreground">{message.content}</p>
@@ -74,16 +67,14 @@ export function MessageBubble({ message, onSuggestedQuery }: MessageBubbleProps)
               </div>
             )}
 
-            {/* Loading state */}
             {message.type === "loading" && (
               <div className="flex items-center gap-1.5 py-1">
-                <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0ms]" />
-                <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:150ms]" />
-                <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:300ms]" />
+                <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce [animation-delay:0ms]" />
+                <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce [animation-delay:150ms]" />
+                <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce [animation-delay:300ms]" />
               </div>
             )}
 
-            {/* Follow-up suggestions */}
             {message.followUps && message.followUps.length > 0 && (
               <SuggestedQueries
                 suggestions={message.followUps}

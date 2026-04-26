@@ -20,14 +20,14 @@ export function ResultPanel({ data, chart, sql }: ResultPanelProps) {
       <TabsList className="h-8">
         {chart.type !== "table" && (
           <TabsTrigger value="chart" className="text-xs px-3 h-7">
-            Chart
+            Visual
           </TabsTrigger>
         )}
         <TabsTrigger value="table" className="text-xs px-3 h-7">
-          Table
+          Data
         </TabsTrigger>
         <TabsTrigger value="sql" className="text-xs px-3 h-7">
-          SQL
+          Query
         </TabsTrigger>
       </TabsList>
       {chart.type !== "table" && (

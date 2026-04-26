@@ -25,7 +25,7 @@ export function KPICard({ data, chart }: KPICardProps) {
 
   return (
     <div className="flex flex-col items-center justify-center py-8 px-4">
-      <div className="text-5xl font-bold tracking-tight text-foreground">
+      <div className="text-5xl font-bold tracking-tight bg-gradient-to-r from-[#f43f5e] to-[#6366f1] bg-clip-text text-transparent">
         {value}
       </div>
       <div className="text-sm text-muted-foreground mt-2 capitalize">

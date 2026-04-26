@@ -19,15 +19,12 @@ function generateSuggestions(schema: SchemaInfo): Suggestion[] {
   const tables = schema.tables;
   const suggestions: Suggestion[] = [];
 
-  const tableNames = tables.map((t) => t.name);
-
   const findTable = (...candidates: string[]) =>
     tables.find((t) => candidates.some((c) => t.name.toLowerCase().includes(c)));
 
   const hasColumn = (t: { columns: { name: string }[] }, ...candidates: string[]) =>
     t.columns.some((c) => candidates.some((n) => c.name.toLowerCase().includes(n)));
 
-  // 1. Row count question for the most prominent table
   const mainTable = tables.reduce((a, b) => (b.rowCount > a.rowCount ? b : a), tables[0]);
   if (mainTable) {
     suggestions.push({
@@ -36,31 +33,16 @@ function generateSuggestions(schema: SchemaInfo): Suggestion[] {
     });
   }
 
-  // 2. Time-series question if any table has a date/time column
   const dateTable = tables.find((t) =>
     hasColumn(t, "created_at", "ordered_at", "signed_up_at", "joined_at", "release_date", "date", "stream_date")
   );
   if (dateTable) {
-    const dateCol = dateTable.columns.find((c) =>
-      ["created_at", "ordered_at", "signed_up_at", "joined_at", "release_date", "date", "stream_date"].some((d) =>
-        c.name.toLowerCase().includes(d)
-      )
-    );
-    if (dateCol) {
-      suggestions.push({
-        label: `Show me ${dateTable.name} over time`,
-        icon: "chart",
-      });
-    }
+    suggestions.push({ label: `Show me ${dateTable.name} over time`, icon: "chart" });
   }
 
-  // 3. Breakdown / category question
   const categoryTable = findTable("categor", "genre", "type", "plan", "status");
   if (categoryTable) {
-    suggestions.push({
-      label: `What's the breakdown by ${categoryTable.name}?`,
-      icon: "pie",
-    });
+    suggestions.push({ label: `What's the breakdown by ${categoryTable.name}?`, icon: "pie" });
   } else {
     const tableWithCategory = tables.find((t) =>
       hasColumn(t, "category", "genre", "type", "status", "plan", "country")
@@ -80,7 +62,6 @@ function generateSuggestions(schema: SchemaInfo): Suggestion[] {
     }
   }
 
-  // 4. Top N / ranking question
   const numericTable = tables.find((t) =>
     hasColumn(t, "price", "total", "revenue", "amount", "rating", "stream_count", "salary", "score", "lifetime_value", "follower_count")
   );
@@ -98,25 +79,16 @@ function generateSuggestions(schema: SchemaInfo): Suggestion[] {
     }
   }
 
-  // 5. Relationship / join question
   if (schema.relationships.length > 0) {
     const rel = schema.relationships[0];
-    suggestions.push({
-      label: `Show ${rel.fromTable} with their ${rel.toTable}`,
-      icon: "search",
-    });
+    suggestions.push({ label: `Show ${rel.fromTable} with their ${rel.toTable}`, icon: "search" });
   }
 
-  // 6. Overview question
   if (tables.length > 1) {
     const secondTable = tables.find((t) => t.name !== mainTable?.name) || tables[1];
-    suggestions.push({
-      label: `Show me all ${secondTable.name}`,
-      icon: "table",
-    });
+    suggestions.push({ label: `Show me all ${secondTable.name}`, icon: "table" });
   }
 
-  // Ensure we have exactly 6 suggestions — pad with generic table queries
   const remaining = tables.filter(
     (t) => !suggestions.some((s) => s.label.toLowerCase().includes(t.name.toLowerCase()))
   );
@@ -124,10 +96,7 @@ function generateSuggestions(schema: SchemaInfo): Suggestion[] {
   let iconIdx = 0;
   while (suggestions.length < 6 && remaining.length > 0) {
     const t = remaining.shift()!;
-    suggestions.push({
-      label: `Summarize the ${t.name} data`,
-      icon: icons[iconIdx++ % icons.length],
-    });
+    suggestions.push({ label: `Summarize the ${t.name} data`, icon: icons[iconIdx++ % icons.length] });
   }
 
   return suggestions.slice(0, 6);
@@ -201,29 +170,28 @@ export function WelcomeScreen({ onSelectQuery, schema }: WelcomeScreenProps) {
   );
 
   return (
-    <div className="flex-1 flex items-center justify-center p-8">
+    <div className="flex-1 flex items-center justify-center p-8 gradient-welcome">
       <div className="max-w-2xl w-full text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8 text-primary">
-            <ellipse cx="12" cy="5" rx="9" ry="3" />
-            <path d="M3 5V19A9 3 0 0 0 21 19V5" />
-            <path d="M3 12A9 3 0 0 0 21 12" />
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl gradient-primary mb-6 shadow-lg shadow-primary/20">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" className="w-10 h-10">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            <path d="M8 10h.01M12 10h.01M16 10h.01" />
           </svg>
         </div>
-        <h1 className="text-2xl font-semibold mb-2">
-          Talk to your database
+        <h1 className="text-3xl font-bold mb-2 tracking-tight">
+          What would you like to know?
         </h1>
-        <p className="text-muted-foreground mb-8">
-          Ask questions in plain English. Get SQL, charts, and insights instantly.
+        <p className="text-muted-foreground mb-10 text-base max-w-md mx-auto">
+          Ask anything about your data in plain English. I&apos;ll find the answers and show you charts and insights.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl mx-auto">
           {queries.map((q, i) => (
             <button
               key={i}
               onClick={() => onSelectQuery(q.label)}
-              className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:bg-accent text-left transition-colors group cursor-pointer"
+              className="flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-card/60 hover:bg-card hover:shadow-md hover:shadow-primary/5 hover:border-primary/20 text-left transition-all duration-200 group cursor-pointer"
             >
-              <span className="text-muted-foreground group-hover:text-foreground transition-colors">
+              <span className="text-muted-foreground group-hover:text-primary transition-colors">
                 {ICONS[q.icon]}
               </span>
               <span className="text-sm">{q.label}</span>

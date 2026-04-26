@@ -14,7 +14,7 @@ export function SuggestedQueries({ suggestions, onSelect }: SuggestedQueriesProp
         <button
           key={i}
           onClick={() => onSelect(suggestion)}
-          className="text-xs px-3 py-1.5 rounded-full border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          className="text-xs px-3.5 py-2 rounded-full border border-primary/20 bg-primary/5 hover:bg-primary/10 text-foreground hover:border-primary/40 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md hover:shadow-primary/5"
         >
           {suggestion}
         </button>

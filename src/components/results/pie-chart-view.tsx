@@ -16,14 +16,14 @@ interface PieChartViewProps {
 }
 
 const COLORS = [
-  "hsl(var(--primary))",
-  "hsl(210, 70%, 55%)",
-  "hsl(150, 60%, 45%)",
-  "hsl(45, 90%, 50%)",
-  "hsl(0, 70%, 55%)",
-  "hsl(270, 60%, 55%)",
-  "hsl(30, 80%, 55%)",
-  "hsl(180, 60%, 45%)",
+  "#f43f5e",
+  "#6366f1",
+  "#10b981",
+  "#f59e0b",
+  "#06b6d4",
+  "#8b5cf6",
+  "#ec4899",
+  "#14b8a6",
 ];
 
 export function PieChartView({ data, chart }: PieChartViewProps) {
@@ -57,10 +57,11 @@ export function PieChartView({ data, chart }: PieChartViewProps) {
           </Pie>
           <Tooltip
             contentStyle={{
-              backgroundColor: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: "8px",
+              backgroundColor: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: "12px",
               fontSize: "12px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
             }}
           />
           <Legend />

@@ -6,6 +6,12 @@ interface DataTableProps {
   data: QueryResult;
 }
 
+function humanizeColumn(name: string): string {
+  return name
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function DataTable({ data }: DataTableProps) {
   if (data.rows.length === 0) {
     return (
@@ -16,16 +22,16 @@ export function DataTable({ data }: DataTableProps) {
   }
 
   return (
-    <div className="overflow-auto max-h-80 rounded-lg border">
+    <div className="overflow-auto max-h-80 rounded-xl border border-border/50 shadow-sm">
       <table className="w-full text-sm">
-        <thead className="bg-muted/50 sticky top-0">
+        <thead className="bg-muted/30 sticky top-0 backdrop-blur-sm">
           <tr>
             {data.columns.map((col) => (
               <th
                 key={col}
                 className="text-left px-4 py-2.5 font-medium text-muted-foreground border-b whitespace-nowrap"
               >
-                {col}
+                {humanizeColumn(col)}
               </th>
             ))}
           </tr>
@@ -34,7 +40,7 @@ export function DataTable({ data }: DataTableProps) {
           {data.rows.map((row, i) => (
             <tr
               key={i}
-              className="border-b last:border-0 hover:bg-muted/30 transition-colors"
+              className="border-b last:border-0 hover:bg-muted/20 transition-colors"
             >
               {data.columns.map((col) => (
                 <td key={col} className="px-4 py-2 whitespace-nowrap">
@@ -46,8 +52,8 @@ export function DataTable({ data }: DataTableProps) {
         </tbody>
       </table>
       {data.truncated && (
-        <div className="px-4 py-2 text-xs text-muted-foreground bg-muted/30 border-t">
-          Showing {data.rowCount} of more rows. Add a filter or LIMIT to narrow results.
+        <div className="px-4 py-2 text-xs text-muted-foreground bg-muted/20 border-t">
+          Showing first {data.rowCount} results. Ask me to narrow down the data if you need something more specific.
         </div>
       )}
     </div>
