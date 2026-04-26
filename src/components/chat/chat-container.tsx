@@ -71,17 +71,6 @@ function ChatContainerInner() {
               </svg>
             </a>
             <ThemeToggle />
-            {hasMessages && (
-              <button
-                onClick={clearConversation}
-                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-border hover:bg-muted/50 transition-colors cursor-pointer"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                New chat
-              </button>
-            )}
           </div>
         </header>
 
