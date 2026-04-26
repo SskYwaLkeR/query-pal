@@ -123,58 +123,92 @@ export async function POST(request: NextRequest) {
       } satisfies ChatResponse);
     }
 
-    // 8. Execute SQL via adapter
-    try {
-      const result = await executeQuery(adapter, parsed.sql);
+    // 8. Execute SQL via adapter (with one self-correction retry on column/table errors)
+    let lastSql = parsed.sql;
+    let lastExplanation = parsed.explanation;
+    for (let execAttempt = 0; execAttempt < 2; execAttempt++) {
+      try {
+        const result = await executeQuery(adapter, lastSql);
 
-      // 9. Determine chart type
-      const chart = recommendChart(
-        result.columns,
-        result.rows,
-        parsed.chart_recommendation
-      );
+        const chart = recommendChart(
+          result.columns,
+          result.rows,
+          parsed.chart_recommendation
+        );
 
-      // 10. Build result summary for context
-      const summary = buildResultSummary(
-        result.columns,
-        result.rows,
-        parsed.sql
-      );
+        const summary = buildResultSummary(
+          result.columns,
+          result.rows,
+          lastSql
+        );
 
-      return NextResponse.json({
-        type: "success",
-        sql: parsed.sql,
-        explanation: parsed.explanation ?? undefined,
-        data: result,
-        chart,
-        followUps: parsed.follow_up_suggestions,
-        resultSummary: summary,
-      } satisfies ChatResponse);
-    } catch (dbError) {
-      if (dbError instanceof QueryTimeoutError) {
+        return NextResponse.json({
+          type: "success",
+          sql: lastSql,
+          explanation: lastExplanation ?? undefined,
+          data: result,
+          chart,
+          followUps: parsed.follow_up_suggestions,
+          resultSummary: summary,
+        } satisfies ChatResponse);
+      } catch (dbError) {
+        if (dbError instanceof QueryTimeoutError) {
+          return NextResponse.json({
+            type: "error",
+            message: dbError.message,
+            sql: lastSql ?? undefined,
+            explanation: lastExplanation ?? undefined,
+            followUps: [
+              "Try a simpler version of this query",
+              "Add a date filter to narrow results",
+            ],
+          } satisfies ChatResponse);
+        }
+
+        const errMsg =
+          dbError instanceof Error ? dbError.message : "Query execution failed";
+
+        const isColumnError =
+          /column .* does not exist|relation .* does not exist|no such column|no such table/i.test(
+            errMsg
+          );
+
+        if (execAttempt === 0 && isColumnError) {
+          try {
+            const correctionMessages = [
+              ...messages,
+              { role: "assistant" as const, content: JSON.stringify(parsed) },
+              {
+                role: "user" as const,
+                content: `The SQL you generated failed with this database error: "${errMsg}". Check the schema carefully — primary keys are named "id", not "table_id". Foreign keys like "customer_id" exist on the REFERENCING table (e.g., orders.customer_id), not on the referenced table (customers.id). Fix the query and respond with ONLY the corrected JSON.`,
+              },
+            ];
+            const retryRaw = await callLLM(system, correctionMessages);
+            const retryParsed = parseResponse(retryRaw);
+            if (retryParsed.sql) {
+              const retryValidation = validateSQL(retryParsed.sql);
+              if (retryValidation.valid) {
+                lastSql = retryParsed.sql;
+                lastExplanation = retryParsed.explanation;
+                continue;
+              }
+            }
+          } catch {
+            // retry failed, fall through to error response
+          }
+        }
+
         return NextResponse.json({
           type: "error",
-          message: dbError.message,
-          sql: parsed.sql ?? undefined,
-          explanation: parsed.explanation ?? undefined,
+          message: `Query failed: ${errMsg}. Try rephrasing your question.`,
+          sql: lastSql ?? undefined,
+          explanation: lastExplanation ?? undefined,
           followUps: [
-            "Try a simpler version of this query",
-            "Add a date filter to narrow results",
+            "Show me all tables in the database",
+            "How many customers do we have?",
           ],
         } satisfies ChatResponse);
       }
-      const errMsg =
-        dbError instanceof Error ? dbError.message : "Query execution failed";
-      return NextResponse.json({
-        type: "error",
-        message: `Query failed: ${errMsg}. Try rephrasing your question.`,
-        sql: parsed.sql ?? undefined,
-        explanation: parsed.explanation ?? undefined,
-        followUps: [
-          "Show me all tables in the database",
-          "How many customers do we have?",
-        ],
-      } satisfies ChatResponse);
     }
   } catch (error) {
     const errMsg =

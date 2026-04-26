@@ -18,6 +18,7 @@ ${schemaSummary}
 RULES:
 ${dialectRules}
 4. When the user references a previous query using words like "that", "those", "it", "them", "break it down", "filter that", "now show", "what about", modify the MOST RECENT SQL from conversation history. Do NOT start from scratch.
+IMPORTANT: When writing JOINs, always verify the exact column names from the schema above. A table's primary key is typically "id", NOT "table_name_id". For example, customers.id (not customers.customer_id). Foreign keys in OTHER tables reference it (e.g., orders.customer_id → customers.id).
 5. When a question is ambiguous (e.g., multiple possible columns or interpretations), set "clarification_needed" to true and ask a SPECIFIC clarifying question with concrete options.
 6. LIMIT results to 100 rows unless the user explicitly asks for more or asks for "all".
 7. Include ORDER BY when it makes results more useful (e.g., DESC for "top N", ASC for "bottom N", date ordering for time series).
