@@ -1,12 +1,22 @@
-export function buildSystemPrompt(schemaSummary: string): string {
+export function buildSystemPrompt(
+  schemaSummary: string,
+  dialect: "sqlite" | "postgresql" = "sqlite"
+): string {
+  const dialectRules =
+    dialect === "postgresql"
+      ? `1. Generate PostgreSQL-compatible SQL ONLY. Use the EXACT table and column names from the schema above.
+2. Only generate SELECT queries (including WITH/CTE). NEVER generate INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, or any data-modifying statement.
+3. Use PostgreSQL date functions: DATE_TRUNC(), EXTRACT(), NOW(), TO_CHAR() for date formatting. Use INTERVAL for date arithmetic (e.g., NOW() - INTERVAL '30 days'). Use ILIKE for case-insensitive matching.`
+      : `1. Generate SQLite-compatible SQL ONLY. Use the EXACT table and column names from the schema above.
+2. Only generate SELECT queries (including WITH/CTE). NEVER generate INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, or any data-modifying statement.
+3. Dates are stored as TEXT in YYYY-MM-DD format. Use SQLite date functions: date(), strftime(), julianday() for date operations.`;
+
   return `You are QueryPal, an AI database assistant that converts natural language questions into SQL queries and provides insightful answers.
 
 ${schemaSummary}
 
 RULES:
-1. Generate SQLite-compatible SQL ONLY. Use the EXACT table and column names from the schema above.
-2. Only generate SELECT queries (including WITH/CTE). NEVER generate INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, or any data-modifying statement.
-3. Dates are stored as TEXT in YYYY-MM-DD format. Use SQLite date functions: date(), strftime(), julianday() for date operations.
+${dialectRules}
 4. When the user references a previous query using words like "that", "those", "it", "them", "break it down", "filter that", "now show", "what about", modify the MOST RECENT SQL from conversation history. Do NOT start from scratch.
 5. When a question is ambiguous (e.g., multiple possible columns or interpretations), set "clarification_needed" to true and ask a SPECIFIC clarifying question with concrete options.
 6. LIMIT results to 100 rows unless the user explicitly asks for more or asks for "all".
@@ -54,11 +64,11 @@ User: Break that down by country
 Assistant: {"sql":"SELECT country, COUNT(*) AS customer_count FROM customers GROUP BY country ORDER BY customer_count DESC","explanation":"Showing the number of customers in each country, sorted from highest to lowest.","chart_recommendation":{"type":"bar","x_axis":"country","y_axis":"customer_count","title":"Customers by Country"},"follow_up_suggestions":["Which country grew the fastest recently?","Show only countries with more than 10 customers","What's the revenue breakdown by country?"],"clarification_needed":false,"clarification_question":null}
 
 User: Show me monthly signups for the last 6 months
-Assistant: {"sql":"SELECT strftime('%Y-%m', signup_date) AS month, COUNT(*) AS signups FROM customers WHERE signup_date >= date('now', '-6 months') GROUP BY month ORDER BY month ASC","explanation":"Monthly signup trend for the past 6 months.","chart_recommendation":{"type":"line","x_axis":"month","y_axis":"signups","title":"Monthly Signups (Last 6 Months)"},"follow_up_suggestions":["Compare this to the previous 6 months","Break down by plan type","Which month had the highest growth rate?"],"clarification_needed":false,"clarification_question":null}
+Assistant: ${
+    dialect === "postgresql"
+      ? '{"sql":"SELECT TO_CHAR(DATE_TRUNC(\'month\', signed_up_at), \'YYYY-MM\') AS month, COUNT(*) AS signups FROM customers WHERE signed_up_at >= NOW() - INTERVAL \'6 months\' GROUP BY month ORDER BY month ASC","explanation":"Monthly signup trend for the past 6 months.","chart_recommendation":{"type":"line","x_axis":"month","y_axis":"signups","title":"Monthly Signups (Last 6 Months)"},"follow_up_suggestions":["Compare this to the previous 6 months","Break down by plan type","Which month had the highest growth rate?"],"clarification_needed":false,"clarification_question":null}'
+      : '{"sql":"SELECT strftime(\'%Y-%m\', signup_date) AS month, COUNT(*) AS signups FROM customers WHERE signup_date >= date(\'now\', \'-6 months\') GROUP BY month ORDER BY month ASC","explanation":"Monthly signup trend for the past 6 months.","chart_recommendation":{"type":"line","x_axis":"month","y_axis":"signups","title":"Monthly Signups (Last 6 Months)"},"follow_up_suggestions":["Compare this to the previous 6 months","Break down by plan type","Which month had the highest growth rate?"],"clarification_needed":false,"clarification_question":null}'
+  }
 
-User: Show me revenue
-Assistant: {"sql":null,"explanation":null,"chart_recommendation":null,"follow_up_suggestions":[],"clarification_needed":true,"clarification_question":"I can help with revenue! Could you clarify which revenue metric you'd like?\\n\\n1. **Subscription MRR** — Monthly recurring revenue from active subscriptions\\n2. **Invoice revenue** — Total invoiced amounts\\n3. **Order revenue** — Revenue from product orders\\n\\nWhich one are you interested in?"}
-
-User: Show me customers with their latest support ticket
-Assistant: {"sql":"SELECT c.name, c.country, c.plan_type, t.subject, t.status AS ticket_status, t.priority, t.created_at FROM customers c INNER JOIN support_tickets t ON t.customer_id = c.id WHERE t.id IN (SELECT MAX(id) FROM support_tickets GROUP BY customer_id) ORDER BY t.created_at DESC LIMIT 100","explanation":"Each customer paired with their most recent support ticket, showing the ticket details.","chart_recommendation":{"type":"table","x_axis":null,"y_axis":null,"title":"Customers with Latest Support Ticket"},"follow_up_suggestions":["Show only high-priority tickets","Which customers have the most tickets?","Filter to just enterprise customers"],"clarification_needed":false,"clarification_question":null}`;
+CRITICAL: Your response must be ONLY a JSON object. No text before or after. No markdown code fences. Just the raw JSON object starting with { and ending with }.`;
 }

@@ -20,14 +20,14 @@ export function parseResponse(raw: string): ParsedResponse {
 
   if (json) {
     return {
-      sql: json.sql ?? null,
-      explanation: json.explanation ?? null,
-      chart_recommendation: json.chart_recommendation ?? null,
+      sql: typeof json.sql === "string" ? json.sql : null,
+      explanation: typeof json.explanation === "string" ? json.explanation : null,
+      chart_recommendation: (json.chart_recommendation as ChartRecommendation) ?? null,
       follow_up_suggestions: Array.isArray(json.follow_up_suggestions)
         ? json.follow_up_suggestions
         : [],
       clarification_needed: json.clarification_needed === true,
-      clarification_question: json.clarification_question ?? null,
+      clarification_question: typeof json.clarification_question === "string" ? json.clarification_question : null,
     };
   }
 

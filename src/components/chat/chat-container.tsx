@@ -7,27 +7,36 @@ import { ChatInput } from "./chat-input";
 import { WelcomeScreen } from "./welcome-screen";
 import { SchemaPanel } from "@/components/schema/schema-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useState } from "react";
+import { DatabaseSelector } from "@/components/database-selector";
+import { DatabaseProvider, useDatabase } from "@/contexts/database-context";
+import { useState, useEffect, useRef } from "react";
 
-export function ChatContainer() {
-  const { messages, isLoading, sendMessage, clearConversation } = useChat();
-  const { schema, loading: schemaLoading } = useSchema();
+function ChatContainerInner() {
+  const { selectedDatabaseId } = useDatabase();
+  const { messages, isLoading, sendMessage, clearConversation } =
+    useChat(selectedDatabaseId);
+  const { schema, loading: schemaLoading } = useSchema(selectedDatabaseId);
   const [showSchema, setShowSchema] = useState(true);
+  const prevDbId = useRef(selectedDatabaseId);
+
+  useEffect(() => {
+    if (prevDbId.current !== selectedDatabaseId) {
+      clearConversation();
+      prevDbId.current = selectedDatabaseId;
+    }
+  }, [selectedDatabaseId, clearConversation]);
 
   const hasMessages = messages.length > 0;
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Schema sidebar — hidden on mobile */}
       {showSchema && (
         <div className="hidden md:block">
           <SchemaPanel schema={schema} loading={schemaLoading} />
         </div>
       )}
 
-      {/* Main chat area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
         <header className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex items-center gap-3">
             <button
@@ -41,11 +50,22 @@ export function ChatContainer() {
               </svg>
             </button>
             <h1 className="text-lg font-semibold">QueryPal</h1>
+            <DatabaseSelector />
             <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
               {schema ? `${schema.tables.length} tables` : "loading..."}
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <a
+              href="/admin"
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted transition-colors"
+              title="Manage connections"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </a>
             <ThemeToggle />
             {hasMessages && (
               <button
@@ -58,7 +78,6 @@ export function ChatContainer() {
           </div>
         </header>
 
-        {/* Messages or welcome screen */}
         {hasMessages ? (
           <MessageList
             messages={messages}
@@ -66,12 +85,19 @@ export function ChatContainer() {
             onSuggestedQuery={sendMessage}
           />
         ) : (
-          <WelcomeScreen onSelectQuery={sendMessage} />
+          <WelcomeScreen onSelectQuery={sendMessage} schema={schema} />
         )}
 
-        {/* Input */}
         <ChatInput onSend={sendMessage} disabled={isLoading} />
       </div>
     </div>
+  );
+}
+
+export function ChatContainer() {
+  return (
+    <DatabaseProvider>
+      <ChatContainerInner />
+    </DatabaseProvider>
   );
 }

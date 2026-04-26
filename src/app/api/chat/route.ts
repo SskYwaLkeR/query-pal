@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getReadonlyDb } from "@/lib/db/connection";
-import { getSchema } from "@/lib/db/schema-introspector";
 import { buildSystemPrompt } from "@/lib/ai/prompts";
 import { getLLMProvider } from "@/lib/ai/providers";
 import {
@@ -11,12 +9,16 @@ import { parseResponse } from "@/lib/ai/response-parser";
 import { validateSQL } from "@/lib/sql/validator";
 import { executeQuery } from "@/lib/db/executor";
 import { recommendChart } from "@/lib/viz/chart-recommender";
+import {
+  getAdapter,
+  getSchemaForConnection,
+} from "@/lib/db/connection-manager";
 import { ChatRequest, ChatResponse } from "@/types/chat";
 
 export async function POST(request: NextRequest) {
   try {
     const body: ChatRequest = await request.json();
-    const { message, conversationHistory } = body;
+    const { message, conversationHistory, databaseId = "demo" } = body;
 
     if (!message?.trim()) {
       return NextResponse.json(
@@ -25,10 +27,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Get schema
-    const db = getReadonlyDb();
-    const schema = getSchema(db);
-    const systemPrompt = buildSystemPrompt(schema.summary);
+    // 1. Get adapter and schema for the selected database
+    const adapter = await getAdapter(databaseId);
+    const schema = await getSchemaForConnection(databaseId);
+    const systemPrompt = buildSystemPrompt(schema.summary, adapter.dialect);
 
     // 2. Build messages with conversation context
     const { systemPrompt: system, messages } = buildMessagesForLLM(
@@ -37,28 +39,54 @@ export async function POST(request: NextRequest) {
       message
     );
 
-    // 3. Call LLM (Claude or Gemini, based on AI_PROVIDER env)
-    let llmRaw: string;
-    try {
-      const callLLM = getLLMProvider();
-      llmRaw = await callLLM(system, messages);
-    } catch (error) {
-      db.close();
-      const errMsg =
-        error instanceof Error ? error.message : "Failed to call AI";
+    // 3. Call LLM (with one retry if it fails to produce SQL)
+    const callLLM = getLLMProvider();
+    let parsed;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let llmRaw: string;
+      try {
+        const msgs =
+          attempt === 0
+            ? messages
+            : [
+                ...messages,
+                {
+                  role: "assistant" as const,
+                  content: "Let me provide the correct JSON response.",
+                },
+                {
+                  role: "user" as const,
+                  content:
+                    "You did not respond with valid JSON containing a sql field. You MUST respond with ONLY a raw JSON object like: {\"sql\": \"SELECT ...\", \"explanation\": \"...\", ...}. No prose, no markdown. Try again.",
+                },
+              ];
+        llmRaw = await callLLM(system, msgs);
+      } catch (error) {
+        const errMsg =
+          error instanceof Error ? error.message : "Failed to call AI";
+        return NextResponse.json({
+          type: "error",
+          message: `AI service error: ${errMsg}`,
+          followUps: [],
+        } satisfies ChatResponse);
+      }
+
+      parsed = parseResponse(llmRaw);
+
+      if (parsed.clarification_needed || parsed.sql) break;
+      if (attempt === 0) continue;
+    }
+
+    if (!parsed) {
       return NextResponse.json({
         type: "error",
-        message: `AI service error: ${errMsg}`,
+        message: "I wasn't able to generate a query for that. Could you rephrase?",
         followUps: [],
       } satisfies ChatResponse);
     }
 
-    // 4. Parse response
-    const parsed = parseResponse(llmRaw);
-
     // 5. Handle clarification
     if (parsed.clarification_needed) {
-      db.close();
       return NextResponse.json({
         type: "clarification",
         message: parsed.clarification_question ?? undefined,
@@ -66,9 +94,8 @@ export async function POST(request: NextRequest) {
       } satisfies ChatResponse);
     }
 
-    // 6. If no SQL generated, return explanation as-is
+    // 6. If no SQL generated after retries, return explanation
     if (!parsed.sql) {
-      db.close();
       return NextResponse.json({
         type: "error",
         message:
@@ -81,7 +108,6 @@ export async function POST(request: NextRequest) {
     // 7. Validate SQL
     const validation = validateSQL(parsed.sql);
     if (!validation.valid) {
-      db.close();
       return NextResponse.json({
         type: "error",
         message: `Safety check failed: ${validation.error}`,
@@ -90,9 +116,9 @@ export async function POST(request: NextRequest) {
       } satisfies ChatResponse);
     }
 
-    // 8. Execute SQL
+    // 8. Execute SQL via adapter
     try {
-      const result = executeQuery(db, parsed.sql);
+      const result = await executeQuery(adapter, parsed.sql);
 
       // 9. Determine chart type
       const chart = recommendChart(
@@ -108,8 +134,6 @@ export async function POST(request: NextRequest) {
         parsed.sql
       );
 
-      db.close();
-
       return NextResponse.json({
         type: "success",
         sql: parsed.sql,
@@ -120,7 +144,6 @@ export async function POST(request: NextRequest) {
         resultSummary: summary,
       } satisfies ChatResponse);
     } catch (dbError) {
-      db.close();
       const errMsg =
         dbError instanceof Error ? dbError.message : "Query execution failed";
       return NextResponse.json({

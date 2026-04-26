@@ -62,7 +62,10 @@ export function buildMessagesForLLM(
     }
   }
 
-  messages.push({ role: "user", content: currentMessage });
+  messages.push({
+    role: "user",
+    content: `${currentMessage}\n\nRemember: respond with ONLY raw JSON, no markdown, no explanation outside JSON.`,
+  });
 
   return { systemPrompt, messages };
 }

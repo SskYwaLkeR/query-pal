@@ -54,7 +54,7 @@ describe("buildMessagesForLLM", () => {
     const { messages } = buildMessagesForLLM("system", [], "What tables exist?");
     expect(messages).toHaveLength(1);
     expect(messages[0].role).toBe("user");
-    expect(messages[0].content).toBe("What tables exist?");
+    expect(messages[0].content).toContain("What tables exist?");
   });
 
   it("includes conversation history with SQL and result summaries", () => {
@@ -71,7 +71,7 @@ describe("buildMessagesForLLM", () => {
     expect(messages).toHaveLength(3);
     expect(messages[1].content).toContain("SQL executed:");
     expect(messages[1].content).toContain("Result: 1 row");
-    expect(messages[2].content).toBe("Break down by country");
+    expect(messages[2].content).toContain("Break down by country");
   });
 
   it("truncates history to last 20 messages (10 turns)", () => {

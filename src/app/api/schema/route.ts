@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server";
-import { getReadonlyDb } from "@/lib/db/connection";
-import { getSchema } from "@/lib/db/schema-introspector";
+import { NextRequest, NextResponse } from "next/server";
+import { getSchemaForConnection } from "@/lib/db/connection-manager";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const db = getReadonlyDb();
-    const schema = getSchema(db);
-    db.close();
+    const databaseId =
+      request.nextUrl.searchParams.get("databaseId") || "demo";
+    const schema = await getSchemaForConnection(databaseId);
     return NextResponse.json(schema);
   } catch (error) {
     const message =

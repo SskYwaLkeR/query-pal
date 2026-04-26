@@ -1,19 +1,146 @@
 "use client";
 
+import { useMemo } from "react";
+import { SchemaInfo } from "@/types/schema";
+
 interface WelcomeScreenProps {
   onSelectQuery: (query: string) => void;
+  schema: SchemaInfo | null;
 }
 
-const EXAMPLE_QUERIES = [
-  { label: "How many customers do we have?", icon: "users" },
-  { label: "Show me monthly signups over time", icon: "chart" },
-  { label: "What's the revenue breakdown by plan type?", icon: "pie" },
-  { label: "Which customers have overdue invoices?", icon: "alert" },
-  { label: "Top 5 countries by customer count", icon: "globe" },
-  { label: "Show me the churn rate by plan", icon: "trend" },
+type IconName = "users" | "chart" | "pie" | "alert" | "globe" | "trend" | "table" | "search";
+
+interface Suggestion {
+  label: string;
+  icon: IconName;
+}
+
+function generateSuggestions(schema: SchemaInfo): Suggestion[] {
+  const tables = schema.tables;
+  const suggestions: Suggestion[] = [];
+
+  const tableNames = tables.map((t) => t.name);
+
+  const findTable = (...candidates: string[]) =>
+    tables.find((t) => candidates.some((c) => t.name.toLowerCase().includes(c)));
+
+  const hasColumn = (t: { columns: { name: string }[] }, ...candidates: string[]) =>
+    t.columns.some((c) => candidates.some((n) => c.name.toLowerCase().includes(n)));
+
+  // 1. Row count question for the most prominent table
+  const mainTable = tables.reduce((a, b) => (b.rowCount > a.rowCount ? b : a), tables[0]);
+  if (mainTable) {
+    suggestions.push({
+      label: `How many ${mainTable.name} do we have?`,
+      icon: "users",
+    });
+  }
+
+  // 2. Time-series question if any table has a date/time column
+  const dateTable = tables.find((t) =>
+    hasColumn(t, "created_at", "ordered_at", "signed_up_at", "joined_at", "release_date", "date", "stream_date")
+  );
+  if (dateTable) {
+    const dateCol = dateTable.columns.find((c) =>
+      ["created_at", "ordered_at", "signed_up_at", "joined_at", "release_date", "date", "stream_date"].some((d) =>
+        c.name.toLowerCase().includes(d)
+      )
+    );
+    if (dateCol) {
+      suggestions.push({
+        label: `Show me ${dateTable.name} over time`,
+        icon: "chart",
+      });
+    }
+  }
+
+  // 3. Breakdown / category question
+  const categoryTable = findTable("categor", "genre", "type", "plan", "status");
+  if (categoryTable) {
+    suggestions.push({
+      label: `What's the breakdown by ${categoryTable.name}?`,
+      icon: "pie",
+    });
+  } else {
+    const tableWithCategory = tables.find((t) =>
+      hasColumn(t, "category", "genre", "type", "status", "plan", "country")
+    );
+    if (tableWithCategory) {
+      const col = tableWithCategory.columns.find((c) =>
+        ["category", "genre", "type", "status", "plan", "country"].some((n) =>
+          c.name.toLowerCase().includes(n)
+        )
+      );
+      if (col) {
+        suggestions.push({
+          label: `Show ${tableWithCategory.name} breakdown by ${col.name.replace(/_/g, " ")}`,
+          icon: "pie",
+        });
+      }
+    }
+  }
+
+  // 4. Top N / ranking question
+  const numericTable = tables.find((t) =>
+    hasColumn(t, "price", "total", "revenue", "amount", "rating", "stream_count", "salary", "score", "lifetime_value", "follower_count")
+  );
+  if (numericTable) {
+    const numCol = numericTable.columns.find((c) =>
+      ["price", "total", "revenue", "amount", "rating", "stream_count", "salary", "score", "lifetime_value", "follower_count"].some((n) =>
+        c.name.toLowerCase().includes(n)
+      )
+    );
+    if (numCol) {
+      suggestions.push({
+        label: `Top 5 ${numericTable.name} by ${numCol.name.replace(/_/g, " ")}`,
+        icon: "trend",
+      });
+    }
+  }
+
+  // 5. Relationship / join question
+  if (schema.relationships.length > 0) {
+    const rel = schema.relationships[0];
+    suggestions.push({
+      label: `Show ${rel.fromTable} with their ${rel.toTable}`,
+      icon: "search",
+    });
+  }
+
+  // 6. Overview question
+  if (tables.length > 1) {
+    const secondTable = tables.find((t) => t.name !== mainTable?.name) || tables[1];
+    suggestions.push({
+      label: `Show me all ${secondTable.name}`,
+      icon: "table",
+    });
+  }
+
+  // Ensure we have exactly 6 suggestions — pad with generic table queries
+  const remaining = tables.filter(
+    (t) => !suggestions.some((s) => s.label.toLowerCase().includes(t.name.toLowerCase()))
+  );
+  const icons: IconName[] = ["globe", "alert", "users", "chart"];
+  let iconIdx = 0;
+  while (suggestions.length < 6 && remaining.length > 0) {
+    const t = remaining.shift()!;
+    suggestions.push({
+      label: `Summarize the ${t.name} data`,
+      icon: icons[iconIdx++ % icons.length],
+    });
+  }
+
+  return suggestions.slice(0, 6);
+}
+
+const FALLBACK_QUERIES: Suggestion[] = [
+  { label: "How many records are in each table?", icon: "users" },
+  { label: "Show me the first 10 rows", icon: "table" },
+  { label: "What tables are available?", icon: "search" },
+  { label: "Summarize the data", icon: "chart" },
 ];
 
-const ICONS: Record<string, React.ReactNode> = {
+const ICONS: Record<IconName, React.ReactNode> = {
   users: (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5">
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -53,9 +180,26 @@ const ICONS: Record<string, React.ReactNode> = {
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
     </svg>
   ),
+  table: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5">
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+    </svg>
+  ),
+  search: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  ),
 };
 
-export function WelcomeScreen({ onSelectQuery }: WelcomeScreenProps) {
+export function WelcomeScreen({ onSelectQuery, schema }: WelcomeScreenProps) {
+  const queries = useMemo(
+    () => (schema ? generateSuggestions(schema) : FALLBACK_QUERIES),
+    [schema]
+  );
+
   return (
     <div className="flex-1 flex items-center justify-center p-8">
       <div className="max-w-2xl w-full text-center">
@@ -73,7 +217,7 @@ export function WelcomeScreen({ onSelectQuery }: WelcomeScreenProps) {
           Ask questions in plain English. Get SQL, charts, and insights instantly.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {EXAMPLE_QUERIES.map((q, i) => (
+          {queries.map((q, i) => (
             <button
               key={i}
               onClick={() => onSelectQuery(q.label)}

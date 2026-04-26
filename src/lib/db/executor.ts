@@ -1,23 +1,21 @@
-import Database from "better-sqlite3";
+import { DatabaseAdapter } from "./adapter";
 import { QueryResult } from "@/types/query";
 
 const MAX_ROWS = 100;
 
-export function executeQuery(
-  db: Database.Database,
+export async function executeQuery(
+  adapter: DatabaseAdapter,
   sql: string
-): QueryResult {
+): Promise<QueryResult> {
   const limitedSQL = addLimitIfMissing(sql, MAX_ROWS + 1);
 
-  const stmt = db.prepare(limitedSQL);
-  const rows = stmt.all() as Record<string, unknown>[];
+  const { columns, rows } = await adapter.query(limitedSQL);
 
   const truncated = rows.length > MAX_ROWS;
   const returnRows = truncated ? rows.slice(0, MAX_ROWS) : rows;
-  const columns = returnRows.length > 0 ? Object.keys(returnRows[0]) : [];
 
   return {
-    columns,
+    columns: returnRows.length > 0 ? Object.keys(returnRows[0]) : columns,
     rows: returnRows,
     rowCount: returnRows.length,
     truncated,
@@ -26,7 +24,6 @@ export function executeQuery(
 
 export function addLimitIfMissing(sql: string, limit: number): string {
   const normalized = sql.trim().replace(/;$/, "");
-  // Check if LIMIT already exists (not inside a subquery)
   const withoutSubqueries = removeParenthesizedBlocks(normalized);
   if (/\bLIMIT\b/i.test(withoutSubqueries)) {
     return normalized;

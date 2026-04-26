@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { Message, ConversationTurn, ChatResponse } from "@/types/chat";
 import { v4 as uuid } from "uuid";
 
-export function useChat() {
+export function useChat(databaseId: string = "demo") {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -23,7 +23,6 @@ export function useChat() {
       setMessages((prev) => [...prev, userMsg]);
       setIsLoading(true);
 
-      // Build conversation history for context
       const history: ConversationTurn[] = messages.map((m) => ({
         role: m.role,
         content: m.content,
@@ -35,7 +34,11 @@ export function useChat() {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: trimmed, conversationHistory: history }),
+          body: JSON.stringify({
+            message: trimmed,
+            conversationHistory: history,
+            databaseId,
+          }),
         });
 
         const data: ChatResponse = await response.json();
@@ -67,7 +70,7 @@ export function useChat() {
         setIsLoading(false);
       }
     },
-    [messages, isLoading]
+    [messages, isLoading, databaseId]
   );
 
   const clearConversation = useCallback(() => {

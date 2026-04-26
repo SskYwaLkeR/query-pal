@@ -22,6 +22,7 @@ export interface ConversationTurn {
 export interface ChatRequest {
   message: string;
   conversationHistory: ConversationTurn[];
+  databaseId?: string;
 }
 
 export interface ChatResponse {
