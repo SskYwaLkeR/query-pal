@@ -60,11 +60,14 @@ export async function initializeAppDb(): Promise<void> {
       content         TEXT NOT NULL DEFAULT '',
       sql             TEXT,
       chart           JSONB,
+      result_data     JSONB,
       follow_ups      JSONB,
       type            TEXT NOT NULL DEFAULT 'success',
       result_summary  TEXT,
       created_at      TIMESTAMPTZ DEFAULT now()
     );
+
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS result_data JSONB;
 
     CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_conversations_database ON conversations(database_id, updated_at DESC);

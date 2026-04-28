@@ -86,6 +86,7 @@ export async function addMessage(
     content: string;
     sql?: string;
     chart?: Record<string, unknown>;
+    data?: Record<string, unknown>;
     followUps?: string[];
     type?: string;
     resultSummary?: string;
@@ -96,8 +97,8 @@ export async function addMessage(
   const id = uuidv4();
 
   await db.query(
-    `INSERT INTO messages (id, conversation_id, role, content, sql, chart, follow_ups, type, result_summary)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    `INSERT INTO messages (id, conversation_id, role, content, sql, chart, result_data, follow_ups, type, result_summary)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       id,
       conversationId,
@@ -105,6 +106,7 @@ export async function addMessage(
       msg.content,
       msg.sql || null,
       msg.chart ? JSON.stringify(msg.chart) : null,
+      msg.data ? JSON.stringify(msg.data) : null,
       msg.followUps ? JSON.stringify(msg.followUps) : null,
       msg.type || "success",
       msg.resultSummary || null,
@@ -136,6 +138,7 @@ function rowToMessage(row: Record<string, unknown>): Message {
     content: (row.content as string) || "",
     sql: (row.sql as string) || undefined,
     chart: (row.chart as Message["chart"]) || undefined,
+    data: (row.result_data as Message["data"]) || undefined,
     followUps: (row.follow_ups as string[]) || undefined,
     type: (row.type as Message["type"]) || "success",
     resultSummary: (row.result_summary as string) || undefined,

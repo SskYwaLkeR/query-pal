@@ -13,8 +13,8 @@ interface ResultPanelProps {
 }
 
 export function ResultPanel({ data, chart, sql }: ResultPanelProps) {
-  const hasChart = !!chart && chart.type !== "table";
-  const defaultTab = data ? (hasChart ? "chart" : "table") : "sql";
+  const hasChart = !!chart && chart.type !== "table" && !!data;
+  const defaultTab = hasChart ? "chart" : data ? "table" : "sql";
 
   return (
     <Tabs defaultValue={defaultTab} className="mt-3">
@@ -24,27 +24,28 @@ export function ResultPanel({ data, chart, sql }: ResultPanelProps) {
             Visual
           </TabsTrigger>
         )}
-        <TabsTrigger value="table" className="text-xs px-3 h-7">
-          Data
-        </TabsTrigger>
+        {data && (
+          <TabsTrigger value="table" className="text-xs px-3 h-7">
+            Data
+          </TabsTrigger>
+        )}
         <TabsTrigger value="sql" className="text-xs px-3 h-7">
           Query
         </TabsTrigger>
       </TabsList>
-      {hasChart && data && (
+
+      {hasChart && (
         <TabsContent value="chart" className="mt-3">
-          <ChartRenderer data={data} chart={chart} />
+          <ChartRenderer data={data!} chart={chart!} />
         </TabsContent>
       )}
-      <TabsContent value="table" className="mt-3">
-        {data ? (
+
+      {data && (
+        <TabsContent value="table" className="mt-3">
           <DataTable data={data} />
-        ) : (
-          <p className="text-xs text-muted-foreground py-3">
-            Results are not stored — re-run the query to see the data.
-          </p>
-        )}
-      </TabsContent>
+        </TabsContent>
+      )}
+
       <TabsContent value="sql" className="mt-3">
         <SQLDisplay sql={sql} />
       </TabsContent>

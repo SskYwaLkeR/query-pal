@@ -12,7 +12,7 @@ import { DatabaseSelector } from "@/components/database-selector";
 import { DatabaseProvider, useDatabase } from "@/contexts/database-context";
 import { WelcomeModal } from "@/components/onboarding/welcome-modal";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 
 function ChatContainerInner({ conversationId }: { conversationId?: string }) {
@@ -22,19 +22,20 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
     conversations,
     loading: convsLoading,
     deleteConversation,
-    refresh: refreshConversations,
+    upsertConversation,
   } = useConversations(selectedDatabaseId);
 
   const {
     messages,
     isLoading,
+    isLoadingConversation,
     sendMessage: rawSendMessage,
     clearConversation,
     activeConversationId,
   } = useChat(selectedDatabaseId, conversationId ?? null);
 
   const { schema } = useSchema(selectedDatabaseId);
-  const [showHistory, setShowHistory] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
   const prevDbId = useRef(selectedDatabaseId);
   const navigatedRef = useRef(false);
 
@@ -51,26 +52,34 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
     navigatedRef.current = false;
   }, [conversationId]);
 
-  // When database switches, go back to root (new chat)
+  // When database switches, go back to root — useChat clears messages when
+  // conversationId drops to null via the pathname change
   useEffect(() => {
     if (prevDbId.current !== selectedDatabaseId) {
       prevDbId.current = selectedDatabaseId;
-      if (conversationId) router.push("/");
-      else clearConversation();
+      clearConversation();
+      router.push("/");
     }
-  }, [selectedDatabaseId, conversationId, clearConversation, router]);
-
-  // Refresh sidebar after a new message creates a conversation
-  useEffect(() => {
-    if (activeConversationId) refreshConversations();
-  }, [activeConversationId, refreshConversations]);
+  }, [selectedDatabaseId, clearConversation, router]);
 
   const sendMessage = async (text: string) => {
-    await rawSendMessage(text);
+    const result = await rawSendMessage(text);
+    if (result) {
+      const now = new Date().toISOString();
+      const title =
+        text.trim().length > 50 ? text.trim().slice(0, 47) + "..." : text.trim();
+      upsertConversation({
+        id: result.conversationId,
+        databaseId: selectedDatabaseId,
+        title: result.isNew ? title : (conversations.find((c) => c.id === result.conversationId)?.title ?? title),
+        createdAt: conversations.find((c) => c.id === result.conversationId)?.createdAt ?? now,
+        updatedAt: now,
+      });
+    }
   };
 
   const handleSelect = (id: string) => router.push(`/c/${id}`);
-  const handleNewChat = () => router.push("/");
+  const handleNewChat = () => { clearConversation(); router.push("/"); };
   const handleDelete = async (id: string) => {
     await deleteConversation(id);
     if (id === conversationId) router.push("/");
@@ -81,6 +90,7 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
   return (
     <div className="flex h-screen bg-background bg-grid-pattern">
       <WelcomeModal onQuery={sendMessage} />
+      {/* Desktop: inline sidebar */}
       {showHistory && (
         <div className="hidden md:block">
           <ConversationSidebar
@@ -94,12 +104,32 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
         </div>
       )}
 
+      {/* Mobile: overlay drawer */}
+      {showHistory && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowHistory(false)}
+          />
+          <div className="relative z-10 flex h-full">
+            <ConversationSidebar
+              conversations={conversations}
+              loading={convsLoading}
+              activeId={conversationId ?? null}
+              onSelect={(id) => { handleSelect(id); setShowHistory(false); }}
+              onDelete={handleDelete}
+              onNewChat={() => { handleNewChat(); setShowHistory(false); }}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 flex flex-col min-w-0">
         <header className="flex items-center justify-between px-5 py-3 glass">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
               title={showHistory ? "Hide history" : "Show history"}
             >
               <svg
@@ -155,7 +185,14 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
           </div>
         </header>
 
-        {hasMessages ? (
+        {isLoadingConversation ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              Loading conversation...
+            </div>
+          </div>
+        ) : hasMessages ? (
           <MessageList
             messages={messages}
             isLoading={isLoading}
@@ -171,7 +208,9 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
   );
 }
 
-export function ChatContainer({ conversationId }: { conversationId?: string }) {
+export function ChatContainer() {
+  const pathname = usePathname();
+  const conversationId = pathname.match(/^\/c\/([^/]+)/)?.[1];
   return (
     <DatabaseProvider>
       <ChatContainerInner conversationId={conversationId} />

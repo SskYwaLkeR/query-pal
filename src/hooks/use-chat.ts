@@ -10,55 +10,62 @@ export function useChat(
 ) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeConversationId, setActiveConversationId] = useState<
-    string | null
-  >(conversationId);
-  const loadedConvRef = useRef<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(conversationId);
+
+  // Tracks which conversationId already has messages loaded in state.
+  // Set by sendMessage (after API response) so that the subsequent pathname
+  // change to /c/[id] doesn't trigger a DB re-fetch — messages are already
+  // in state with full data (chart rows etc.) and we don't want to overwrite them.
+  const fetchedForRef = useRef<string | null>(null);
+
+  // True while we have a conversationId but haven't loaded messages yet.
+  // Computed so no setState fires synchronously in the effect.
+  const isLoadingConversation =
+    conversationId != null && fetchedForRef.current !== conversationId;
 
   useEffect(() => {
     if (!conversationId) {
-      if (loadedConvRef.current !== null) {
-        setMessages([]);
-        loadedConvRef.current = null;
-        setActiveConversationId(null);
-      }
+      setMessages([]);
+      setActiveConversationId(null);
+      fetchedForRef.current = null;
       return;
     }
-    if (conversationId === loadedConvRef.current) return;
 
-    loadedConvRef.current = conversationId;
     setActiveConversationId(conversationId);
 
+    // Already populated by sendMessage — skip the DB fetch entirely.
+    // This is the key to zero-flicker navigation from / to /c/[id].
+    if (fetchedForRef.current === conversationId) return;
+
     const controller = new AbortController();
-    (async () => {
-      try {
-        const res = await fetch(`/api/conversations/${conversationId}`, {
-          signal: controller.signal,
-        });
-        const data = await res.json();
-        if (data.messages && !controller.signal.aborted) {
-          setMessages(data.messages);
-        }
-      } catch (err) {
+
+    fetch(`/api/conversations/${conversationId}`, { signal: controller.signal })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.messages) return;
+        setMessages(data.messages);
+        fetchedForRef.current = conversationId;
+      })
+      .catch((err) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
-      }
-    })();
+        fetchedForRef.current = conversationId;
+        setMessages([]);
+      });
+
     return () => controller.abort();
+    // No fetchedForRef reset in cleanup: layout never remounts between chat
+    // routes so refs persist. Reset only happens when conversationId → null.
   }, [conversationId]);
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string): Promise<{ conversationId: string; isNew: boolean } | undefined> => {
       const trimmed = text.trim();
       if (!trimmed || isLoading) return;
 
-      const userMsg: Message = {
-        id: uuid(),
-        role: "user",
-        content: trimmed,
-        type: "success",
-      };
-
-      setMessages((prev) => [...prev, userMsg]);
+      setMessages((prev) => [
+        ...prev,
+        { id: uuid(), role: "user", content: trimmed, type: "success" },
+      ]);
       setIsLoading(true);
 
       const history: ConversationTurn[] = messages.map((m) => ({
@@ -82,34 +89,45 @@ export function useChat(
 
         const data: ChatResponse = await response.json();
 
-        if (data.conversationId && !activeConversationId) {
-          setActiveConversationId(data.conversationId);
-          loadedConvRef.current = data.conversationId;
+        const isNew = !activeConversationId && !!data.conversationId;
+        if (data.conversationId) {
+          if (!activeConversationId) setActiveConversationId(data.conversationId);
+          // Mark as fetched BEFORE the pathname changes to /c/[id].
+          // When the layout re-renders with the new conversationId, the effect
+          // sees fetchedForRef.current === conversationId and skips the DB fetch,
+          // preserving the full message with data/chart in state.
+          fetchedForRef.current = data.conversationId;
         }
 
-        const assistantMsg: Message = {
-          id: uuid(),
-          role: "assistant",
-          content: data.explanation || data.message || "",
-          sql: data.sql,
-          data: data.data,
-          chart: data.chart,
-          followUps: data.followUps,
-          type: data.type,
-          resultSummary: data.resultSummary,
-        };
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: uuid(),
+            role: "assistant",
+            content: data.explanation || data.message || "",
+            sql: data.sql,
+            data: data.data,
+            chart: data.chart,
+            followUps: data.followUps,
+            type: data.type,
+            resultSummary: data.resultSummary,
+          },
+        ]);
 
-        setMessages((prev) => [...prev, assistantMsg]);
+        if (data.conversationId) {
+          return { conversationId: data.conversationId, isNew };
+        }
       } catch {
-        const errorMsg: Message = {
-          id: uuid(),
-          role: "assistant",
-          content:
-            "Sorry, I encountered a network error. Please try again.",
-          type: "error",
-          followUps: [],
-        };
-        setMessages((prev) => [...prev, errorMsg]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: uuid(),
+            role: "assistant",
+            content: "Sorry, I encountered a network error. Please try again.",
+            type: "error",
+            followUps: [],
+          },
+        ]);
       } finally {
         setIsLoading(false);
       }
@@ -120,12 +138,13 @@ export function useChat(
   const clearConversation = useCallback(() => {
     setMessages([]);
     setActiveConversationId(null);
-    loadedConvRef.current = null;
+    fetchedForRef.current = null;
   }, []);
 
   return {
     messages,
     isLoading,
+    isLoadingConversation,
     sendMessage,
     clearConversation,
     activeConversationId,

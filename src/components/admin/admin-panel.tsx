@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ConnectionConfig } from "@/types/connection";
 
 type FormData = {
@@ -12,6 +12,7 @@ type FormData = {
 const emptyForm: FormData = { name: "", connectionString: "" };
 
 export function AdminPanel() {
+  const router = useRouter();
   const [connections, setConnections] = useState<ConnectionConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -92,9 +93,9 @@ export function AdminPanel() {
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted transition-colors" title="Back to chat">
+            <button onClick={() => router.back()} className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted transition-colors cursor-pointer" title="Back to chat">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-            </Link>
+            </button>
             <h1 className="text-lg font-semibold">Manage Connections</h1>
           </div>
           <button onClick={openAdd} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer">

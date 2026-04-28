@@ -33,6 +33,7 @@ async function persistAndRespond(
       content: response.explanation || response.message || "",
       sql: response.sql,
       chart: response.chart as Record<string, unknown> | undefined,
+      data: response.data as Record<string, unknown> | undefined,
       followUps: response.followUps,
       type: response.type,
       resultSummary: response.resultSummary,
