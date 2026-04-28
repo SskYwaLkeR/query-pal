@@ -18,7 +18,7 @@ export async function callClaude(
   const anthropic = getClient();
 
   const response = await anthropic.messages.create({
-    model: process.env.CLAUDE_MODEL || "claude-sonnet-4-20250514",
+    model: process.env.CLAUDE_MODEL || "claude-sonnet-4-5",
     max_tokens: 2048,
     system: [
       {
