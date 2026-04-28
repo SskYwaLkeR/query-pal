@@ -186,6 +186,18 @@ src/
 | Recharts | Best React charting library for analytics visualizations |
 | uuid | Deterministic conversation and message IDs |
 
+## Why I Built This
+
+My first instinct when I read "build a conversational agent" was a personal fitness coach — something where you could say "I had a rough day at work" and it would adjust your marathon training plan for the week. That got me thinking about what makes an agent actually conversational: it needs to hold context, respond to your situation.
+
+I pivoted to QueryPal because it's a more practical version of the same idea. In most teams a lot of people want data insights but don't know SQL — including me. You shouldn't need to file a ticket or learn SQL syntax just to ask "which products are underperforming this quarter?" The agent should let you follow up naturally — "now filter that to enterprise customers" — without starting from scratch every time.
+
+That shaped what I included and what I skipped:
+
+- **Auth** — I looked at it. It's not complicated to add (NextAuth + OAuth is a day's work) but it doesn't demonstrate anything about the conversational agent problem. It would've just added friction for anyone trying to run it.
+- **Streaming** — The main reason I skipped it is it would've required an overhaul of how the API route works — moving from a single response to a stream changes the whole request/response contract. Not a one-liner. The conversation model works the same either way; it just feels faster which is crucial but I'll pick this later.
+
+
 ## Key Design Decisions
 
 ### What I Built
