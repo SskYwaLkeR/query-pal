@@ -1,7 +1,6 @@
 "use client";
 
 import { useChat } from "@/hooks/use-chat";
-import { useSchema } from "@/hooks/use-schema";
 import { useConversations } from "@/hooks/use-conversations";
 import { MessageList } from "./message-list";
 import { ChatInput } from "./chat-input";
@@ -17,7 +16,7 @@ import { useState, useEffect, useRef } from "react";
 
 function ChatContainerInner({ conversationId }: { conversationId?: string }) {
   const router = useRouter();
-  const { selectedDatabaseId } = useDatabase();
+  const { selectedDatabaseId, schema } = useDatabase();
   const {
     conversations,
     loading: convsLoading,
@@ -34,7 +33,6 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
     activeConversationId,
   } = useChat(selectedDatabaseId, conversationId ?? null);
 
-  const { schema } = useSchema(selectedDatabaseId);
   const [showHistory, setShowHistory] = useState(false);
   const prevDbId = useRef(selectedDatabaseId);
   const navigatedRef = useRef(false);
