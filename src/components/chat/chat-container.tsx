@@ -90,28 +90,15 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
   return (
     <div className="flex h-screen bg-background bg-grid-pattern">
       <WelcomeModal onQuery={sendMessage} />
-      {/* Desktop: inline sidebar */}
       {showHistory && (
-        <div className="hidden md:block">
-          <ConversationSidebar
-            conversations={conversations}
-            loading={convsLoading}
-            activeId={conversationId ?? null}
-            onSelect={handleSelect}
-            onDelete={handleDelete}
-            onNewChat={handleNewChat}
-          />
-        </div>
-      )}
-
-      {/* Mobile: overlay drawer */}
-      {showHistory && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
+        <>
+          {/* Backdrop — mobile only */}
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
             onClick={() => setShowHistory(false)}
           />
-          <div className="relative z-10 flex h-full">
+          {/* Sidebar — fixed overlay on mobile, inline on desktop */}
+          <div className="fixed inset-y-0 left-0 z-50 flex md:static md:inset-auto md:z-auto">
             <ConversationSidebar
               conversations={conversations}
               loading={convsLoading}
@@ -121,7 +108,7 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
               onNewChat={() => { handleNewChat(); setShowHistory(false); }}
             />
           </div>
-        </div>
+        </>
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
