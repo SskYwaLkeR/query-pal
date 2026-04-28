@@ -131,7 +131,10 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
                 <circle cx="12" cy="12" r="9" />
               </svg>
             </button>
-            <h1 className="text-lg font-bold bg-gradient-to-r from-[#f43f5e] to-[#6366f1] bg-clip-text text-transparent">
+            <h1
+              onClick={handleNewChat}
+              className="text-lg font-bold bg-gradient-to-r from-[#f43f5e] to-[#6366f1] bg-clip-text text-transparent cursor-pointer"
+            >
               QueryPal
             </h1>
             <DatabaseSelector />
