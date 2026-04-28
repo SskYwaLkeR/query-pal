@@ -7,7 +7,6 @@ import { MessageList } from "./message-list";
 import { ChatInput } from "./chat-input";
 import { WelcomeScreen } from "./welcome-screen";
 import { ConversationSidebar } from "./conversation-sidebar";
-import { SchemaPanel } from "@/components/schema/schema-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DatabaseSelector } from "@/components/database-selector";
 import { DatabaseProvider, useDatabase } from "@/contexts/database-context";
@@ -34,8 +33,7 @@ function ChatContainerInner() {
     activeConversationId,
   } = useChat(selectedDatabaseId, selectedConvId);
 
-  const { schema, loading: schemaLoading } = useSchema(selectedDatabaseId);
-  const [showSchema, setShowSchema] = useState(false);
+  const { schema } = useSchema(selectedDatabaseId);
   const [showHistory, setShowHistory] = useState(true);
   const prevDbId = useRef(selectedDatabaseId);
   const prevConvId = useRef(activeConversationId);
@@ -48,10 +46,7 @@ function ChatContainerInner() {
   }, [selectedDatabaseId, clearConversation]);
 
   useEffect(() => {
-    if (
-      activeConversationId &&
-      activeConversationId !== prevConvId.current
-    ) {
+    if (activeConversationId && activeConversationId !== prevConvId.current) {
       prevConvId.current = activeConversationId;
       refreshConversations();
     }
@@ -71,12 +66,6 @@ function ChatContainerInner() {
 
   return (
     <div className="flex h-screen bg-background bg-grid-pattern">
-      {showSchema && (
-        <div className="hidden md:block">
-          <SchemaPanel schema={schema} loading={schemaLoading} />
-        </div>
-      )}
-
       {showHistory && (
         <div className="hidden md:block">
           <ConversationSidebar
@@ -110,23 +99,13 @@ function ChatContainerInner() {
                 <circle cx="12" cy="12" r="9" />
               </svg>
             </button>
-            <button
-              onClick={() => setShowSchema(!showSchema)}
-              className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-              title={showSchema ? "Hide data panel" : "Show data panel"}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
-                <rect width="18" height="18" x="3" y="3" rx="2" />
-                <path d="M9 3v18" />
-              </svg>
-            </button>
             <h1 className="text-lg font-bold bg-gradient-to-r from-[#f43f5e] to-[#6366f1] bg-clip-text text-transparent">
               QueryPal
             </h1>
             <DatabaseSelector />
             <span className="text-xs text-primary/70 bg-primary/8 px-2.5 py-0.5 rounded-full">
               {schema
-                ? `${schema.tables.length} data collection${schema.tables.length !== 1 ? "s" : ""}`
+                ? `${schema.tables.length} table${schema.tables.length !== 1 ? "s" : ""}`
                 : "connecting..."}
             </span>
           </div>
