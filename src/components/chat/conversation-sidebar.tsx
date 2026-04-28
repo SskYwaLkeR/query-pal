@@ -107,9 +107,12 @@ export function ConversationSidebar({
               {group.label}
             </div>
             {group.items.map((conv) => (
-              <button
+              <div
                 key={conv.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelect(conv.id)}
+                onKeyDown={(e) => e.key === "Enter" && onSelect(conv.id)}
                 className={`group w-full text-left px-2.5 py-2 rounded-lg text-sm transition-colors cursor-pointer flex items-start justify-between gap-1 ${
                   activeId === conv.id
                     ? "bg-primary/10 text-primary"
@@ -143,7 +146,7 @@ export function ConversationSidebar({
                     <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
                   </svg>
                 </button>
-              </button>
+              </div>
             ))}
           </div>
         ))}

@@ -7,18 +7,19 @@ import { DataTable } from "./data-table";
 import { SQLDisplay } from "./sql-display";
 
 interface ResultPanelProps {
-  data: QueryResult;
-  chart: ChartRecommendation;
+  data?: QueryResult;
+  chart?: ChartRecommendation;
   sql: string;
 }
 
 export function ResultPanel({ data, chart, sql }: ResultPanelProps) {
-  const defaultTab = chart.type === "table" ? "table" : "chart";
+  const hasChart = !!chart && chart.type !== "table";
+  const defaultTab = data ? (hasChart ? "chart" : "table") : "sql";
 
   return (
     <Tabs defaultValue={defaultTab} className="mt-3">
       <TabsList className="h-8">
-        {chart.type !== "table" && (
+        {hasChart && (
           <TabsTrigger value="chart" className="text-xs px-3 h-7">
             Visual
           </TabsTrigger>
@@ -30,13 +31,19 @@ export function ResultPanel({ data, chart, sql }: ResultPanelProps) {
           Query
         </TabsTrigger>
       </TabsList>
-      {chart.type !== "table" && (
+      {hasChart && data && (
         <TabsContent value="chart" className="mt-3">
           <ChartRenderer data={data} chart={chart} />
         </TabsContent>
       )}
       <TabsContent value="table" className="mt-3">
-        <DataTable data={data} />
+        {data ? (
+          <DataTable data={data} />
+        ) : (
+          <p className="text-xs text-muted-foreground py-3">
+            Results are not stored — re-run the query to see the data.
+          </p>
+        )}
       </TabsContent>
       <TabsContent value="sql" className="mt-3">
         <SQLDisplay sql={sql} />

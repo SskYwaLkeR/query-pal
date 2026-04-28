@@ -86,7 +86,7 @@ export function MessageBubble({ message, onSuggestedQuery }: MessageBubbleProps)
             {message.type === "success" && (
               <div>
                 <p className="text-sm text-foreground">{message.content}</p>
-                {message.data && message.chart && message.sql && (
+                {message.sql && (
                   <ResultPanel
                     data={message.data}
                     chart={message.chart}

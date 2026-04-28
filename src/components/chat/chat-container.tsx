@@ -10,18 +10,18 @@ import { ConversationSidebar } from "./conversation-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DatabaseSelector } from "@/components/database-selector";
 import { DatabaseProvider, useDatabase } from "@/contexts/database-context";
+import { WelcomeModal } from "@/components/onboarding/welcome-modal";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 
-function ChatContainerInner() {
+function ChatContainerInner({ conversationId }: { conversationId?: string }) {
+  const router = useRouter();
   const { selectedDatabaseId } = useDatabase();
   const {
     conversations,
     loading: convsLoading,
-    activeConversationId: selectedConvId,
-    setActiveConversationId,
     deleteConversation,
-    startNewConversation,
     refresh: refreshConversations,
   } = useConversations(selectedDatabaseId);
 
@@ -31,49 +31,64 @@ function ChatContainerInner() {
     sendMessage: rawSendMessage,
     clearConversation,
     activeConversationId,
-  } = useChat(selectedDatabaseId, selectedConvId);
+  } = useChat(selectedDatabaseId, conversationId ?? null);
 
   const { schema } = useSchema(selectedDatabaseId);
   const [showHistory, setShowHistory] = useState(true);
   const prevDbId = useRef(selectedDatabaseId);
-  const prevConvId = useRef(activeConversationId);
+  const navigatedRef = useRef(false);
 
+  // Navigate to the conversation URL once the first message creates one
+  useEffect(() => {
+    if (activeConversationId && !conversationId && !navigatedRef.current) {
+      navigatedRef.current = true;
+      router.replace(`/c/${activeConversationId}`);
+    }
+  }, [activeConversationId, conversationId, router]);
+
+  // Reset navigation guard when the conversation prop changes
+  useEffect(() => {
+    navigatedRef.current = false;
+  }, [conversationId]);
+
+  // When database switches, go back to root (new chat)
   useEffect(() => {
     if (prevDbId.current !== selectedDatabaseId) {
-      clearConversation();
       prevDbId.current = selectedDatabaseId;
+      if (conversationId) router.push("/");
+      else clearConversation();
     }
-  }, [selectedDatabaseId, clearConversation]);
+  }, [selectedDatabaseId, conversationId, clearConversation, router]);
 
+  // Refresh sidebar after a new message creates a conversation
   useEffect(() => {
-    if (activeConversationId && activeConversationId !== prevConvId.current) {
-      prevConvId.current = activeConversationId;
-      refreshConversations();
-    }
+    if (activeConversationId) refreshConversations();
   }, [activeConversationId, refreshConversations]);
 
   const sendMessage = async (text: string) => {
     await rawSendMessage(text);
-    refreshConversations();
   };
 
-  const handleNewChat = () => {
-    startNewConversation();
-    clearConversation();
+  const handleSelect = (id: string) => router.push(`/c/${id}`);
+  const handleNewChat = () => router.push("/");
+  const handleDelete = async (id: string) => {
+    await deleteConversation(id);
+    if (id === conversationId) router.push("/");
   };
 
   const hasMessages = messages.length > 0;
 
   return (
     <div className="flex h-screen bg-background bg-grid-pattern">
+      <WelcomeModal onQuery={sendMessage} />
       {showHistory && (
         <div className="hidden md:block">
           <ConversationSidebar
             conversations={conversations}
             loading={convsLoading}
-            activeId={selectedConvId}
-            onSelect={setActiveConversationId}
-            onDelete={deleteConversation}
+            activeId={conversationId ?? null}
+            onSelect={handleSelect}
+            onDelete={handleDelete}
             onNewChat={handleNewChat}
           />
         </div>
@@ -156,10 +171,10 @@ function ChatContainerInner() {
   );
 }
 
-export function ChatContainer() {
+export function ChatContainer({ conversationId }: { conversationId?: string }) {
   return (
     <DatabaseProvider>
-      <ChatContainerInner />
+      <ChatContainerInner conversationId={conversationId} />
     </DatabaseProvider>
   );
 }
