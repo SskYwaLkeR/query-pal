@@ -2,7 +2,6 @@
 
 A conversational AI that turns natural language questions into SQL queries, visualizations, and insights — with persistent chat history, multi-database support, and multi-turn context so follow-up questions like "break that down by country" just work.
 
-> **Assumed environment**: macOS. The setup script and instructions below are written for Mac. For Vercel deployment, see the [Deploying to Vercel](#deploying-to-vercel) section.
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
@@ -10,51 +9,22 @@ A conversational AI that turns natural language questions into SQL queries, visu
 ![Claude](https://img.shields.io/badge/Claude-Sonnet_4-purple)
 ![Gemini](https://img.shields.io/badge/Gemini-2.0_Flash-blue)
 
-## Quick Start (Mac)
+## Quick Start
 
-**Only prerequisite**: A Gemini API key (free) or Anthropic API key.  
-PostgreSQL is handled automatically — you don't need it installed.
+**Prerequisites**: A Gemini API key (free) or Anthropic API key, and a PostgreSQL connection string.
 
 ```bash
 git clone <repo-url> && cd querypal
 bash setup.sh
 ```
 
-The script detects your environment and picks the right PostgreSQL path:
-
-| What you have | What the script does |
-|---|---|
-| **Docker Desktop** (recommended) | Starts a PostgreSQL container automatically via `docker compose up postgres -d` |
-| **Homebrew PostgreSQL** (`psql` in PATH) | Creates the `querypal` database with `createdb` |
-| **Neither** | Prints clear instructions for both options and exits |
-
-After the script completes, open `.env.local`, add your API key, then:
+The script installs dependencies and creates `.env.local`. Then open `.env.local`, add your AI API key, and run:
 
 ```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). Tables and demo data are created on the first request — no migration step.
-
-### Don't have Docker or PostgreSQL?
-
-**Option A — Install Docker Desktop** (easiest, nothing else needed):
-1. Download from [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop)
-2. Open Docker Desktop and wait for it to start (whale icon in menu bar)
-3. Re-run `bash setup.sh`
-
-**Option B — Homebrew PostgreSQL**:
-```bash
-brew install postgresql@16
-brew services start postgresql@16
-# then re-run:
-bash setup.sh
-```
-
-**Option C — Cloud database** (no local install at all):
-1. Create a free database at [neon.tech](https://neon.tech)
-2. Copy the connection string
-3. Skip `setup.sh` — just `npm install`, copy `.env.example` to `.env.local`, and set `APP_DATABASE_URL` to your Neon URL
 
 ### AI Provider
 
