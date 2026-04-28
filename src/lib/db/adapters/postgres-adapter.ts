@@ -10,13 +10,20 @@ import {
 export class PostgresAdapter implements DatabaseAdapter {
   readonly dialect = "postgresql" as const;
   private pool: Pool;
+  private readonly schema: string;
 
-  constructor(connectionString: string) {
+  constructor(connectionString: string, schema?: string) {
+    this.schema = /^[a-zA-Z0-9_]+$/.test(schema || "") ? schema! : "public";
     this.pool = new Pool({
       connectionString,
       max: 5,
       idleTimeoutMillis: 30000,
     });
+    if (this.schema !== "public") {
+      this.pool.on("connect", (client) => {
+        client.query(`SET search_path = "${this.schema}", public`).catch(() => {});
+      });
+    }
   }
 
   async query(
@@ -42,6 +49,7 @@ export class PostgresAdapter implements DatabaseAdapter {
   }
 
   async getSchema(): Promise<SchemaInfo> {
+    const s = this.schema;
     const [allColumnsResult, allFksResult, allCountsResult] = await Promise.all([
       this.pool.query(
         `SELECT
@@ -57,12 +65,12 @@ export class PostgresAdapter implements DatabaseAdapter {
            FROM information_schema.table_constraints tc
            JOIN information_schema.key_column_usage ku
              ON tc.constraint_name = ku.constraint_name
-           WHERE tc.table_schema = 'public' AND tc.constraint_type = 'PRIMARY KEY'
+           WHERE tc.table_schema = '${s}' AND tc.constraint_type = 'PRIMARY KEY'
          ) pk ON pk.table_name = c.table_name AND pk.column_name = c.column_name
-         WHERE c.table_schema = 'public'
+         WHERE c.table_schema = '${s}'
            AND c.table_name IN (
              SELECT table_name FROM information_schema.tables
-             WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+             WHERE table_schema = '${s}' AND table_type = 'BASE TABLE'
            )
          ORDER BY c.table_name, c.ordinal_position`
       ),
@@ -77,12 +85,12 @@ export class PostgresAdapter implements DatabaseAdapter {
            ON tc.constraint_name = kcu.constraint_name
          JOIN information_schema.constraint_column_usage ccu
            ON tc.constraint_name = ccu.constraint_name
-         WHERE tc.table_schema = 'public' AND tc.constraint_type = 'FOREIGN KEY'`
+         WHERE tc.table_schema = '${s}' AND tc.constraint_type = 'FOREIGN KEY'`
       ),
       this.pool.query(
         `SELECT relname AS table_name, n_live_tup AS count
          FROM pg_stat_user_tables
-         WHERE schemaname = 'public'`
+         WHERE schemaname = '${s}'`
       ),
     ]);
 

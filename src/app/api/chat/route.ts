@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+
+export const maxDuration = 60;
 import { buildSystemPrompt } from "@/lib/ai/prompts";
 import { getLLMProvider } from "@/lib/ai/providers";
 import {

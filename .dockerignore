@@ -1,0 +1,12 @@
+.next
+node_modules
+.git
+.gitignore
+*.md
+.env*
+!.env.example
+.vercel
+coverage
+data/
+docker-compose.yml
+Dockerfile

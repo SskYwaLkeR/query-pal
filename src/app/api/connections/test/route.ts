@@ -5,13 +5,12 @@ import { ConnectionConfig } from "@/types/connection";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { type, sqlitePath, connectionString } = body;
+    const { connectionString } = body;
 
     const tempConfig: ConnectionConfig = {
       id: "test",
       name: "test",
-      type,
-      sqlitePath,
+      type: "postgresql",
       connectionString,
       createdAt: new Date().toISOString(),
     };
