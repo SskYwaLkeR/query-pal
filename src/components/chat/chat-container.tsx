@@ -2,9 +2,11 @@
 
 import { useChat } from "@/hooks/use-chat";
 import { useSchema } from "@/hooks/use-schema";
+import { useConversations } from "@/hooks/use-conversations";
 import { MessageList } from "./message-list";
 import { ChatInput } from "./chat-input";
 import { WelcomeScreen } from "./welcome-screen";
+import { ConversationSidebar } from "./conversation-sidebar";
 import { SchemaPanel } from "@/components/schema/schema-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DatabaseSelector } from "@/components/database-selector";
@@ -14,11 +16,29 @@ import { useState, useEffect, useRef } from "react";
 
 function ChatContainerInner() {
   const { selectedDatabaseId } = useDatabase();
-  const { messages, isLoading, sendMessage, clearConversation } =
-    useChat(selectedDatabaseId);
+  const {
+    conversations,
+    loading: convsLoading,
+    activeConversationId: selectedConvId,
+    setActiveConversationId,
+    deleteConversation,
+    startNewConversation,
+    refresh: refreshConversations,
+  } = useConversations(selectedDatabaseId);
+
+  const {
+    messages,
+    isLoading,
+    sendMessage: rawSendMessage,
+    clearConversation,
+    activeConversationId,
+  } = useChat(selectedDatabaseId, selectedConvId);
+
   const { schema, loading: schemaLoading } = useSchema(selectedDatabaseId);
   const [showSchema, setShowSchema] = useState(false);
+  const [showHistory, setShowHistory] = useState(true);
   const prevDbId = useRef(selectedDatabaseId);
+  const prevConvId = useRef(activeConversationId);
 
   useEffect(() => {
     if (prevDbId.current !== selectedDatabaseId) {
@@ -26,6 +46,26 @@ function ChatContainerInner() {
       prevDbId.current = selectedDatabaseId;
     }
   }, [selectedDatabaseId, clearConversation]);
+
+  useEffect(() => {
+    if (
+      activeConversationId &&
+      activeConversationId !== prevConvId.current
+    ) {
+      prevConvId.current = activeConversationId;
+      refreshConversations();
+    }
+  }, [activeConversationId, refreshConversations]);
+
+  const sendMessage = async (text: string) => {
+    await rawSendMessage(text);
+    refreshConversations();
+  };
+
+  const handleNewChat = () => {
+    startNewConversation();
+    clearConversation();
+  };
 
   const hasMessages = messages.length > 0;
 
@@ -37,9 +77,39 @@ function ChatContainerInner() {
         </div>
       )}
 
+      {showHistory && (
+        <div className="hidden md:block">
+          <ConversationSidebar
+            conversations={conversations}
+            loading={convsLoading}
+            activeId={selectedConvId}
+            onSelect={setActiveConversationId}
+            onDelete={deleteConversation}
+            onNewChat={handleNewChat}
+          />
+        </div>
+      )}
+
       <div className="flex-1 flex flex-col min-w-0">
         <header className="flex items-center justify-between px-5 py-3 glass">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+              title={showHistory ? "Hide history" : "Show history"}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="w-4 h-4"
+              >
+                <path d="M12 8v4l3 3" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </button>
             <button
               onClick={() => setShowSchema(!showSchema)}
               className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
@@ -61,6 +131,22 @@ function ChatContainerInner() {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleNewChat}
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+              title="New chat"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="w-4 h-4"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
             <Link
               href="/admin"
               className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors"

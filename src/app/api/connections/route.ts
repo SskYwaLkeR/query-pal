@@ -5,7 +5,7 @@ import {
 } from "@/lib/db/connection-registry";
 
 export async function GET() {
-  const connections = loadConnections();
+  const connections = await loadConnections();
   const safe = connections.map((c) => ({
     ...c,
     connectionString: c.connectionString ? maskConnectionString(c.connectionString) : undefined,
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const config = addConnection({
+    const config = await addConnection({
       name: name.trim(),
       type,
       sqlitePath: sqlitePath?.trim(),

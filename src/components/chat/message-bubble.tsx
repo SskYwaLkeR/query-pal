@@ -4,6 +4,29 @@ import { Message } from "@/types/chat";
 import { ResultPanel } from "@/components/results/result-panel";
 import { SuggestedQueries } from "./suggested-queries";
 
+function InfoContent({ content }: { content: string }) {
+  const lines = content.split("\n");
+  return (
+    <div className="space-y-1">
+      {lines.map((line, i) => {
+        if (!line.trim()) return <div key={i} className="h-1" />;
+        const parts = line.split(/(\*\*[^*]+\*\*)/g);
+        return (
+          <p key={i}>
+            {parts.map((part, j) =>
+              part.startsWith("**") && part.endsWith("**") ? (
+                <strong key={j}>{part.slice(2, -2)}</strong>
+              ) : (
+                part
+              )
+            )}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 interface MessageBubbleProps {
   message: Message;
   onSuggestedQuery: (query: string) => void;
@@ -52,6 +75,12 @@ export function MessageBubble({ message, onSuggestedQuery }: MessageBubbleProps)
 
             {message.type === "clarification" && (
               <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+            )}
+
+            {message.type === "info" && (
+              <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                <InfoContent content={message.content} />
+              </div>
             )}
 
             {message.type === "success" && (

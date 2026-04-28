@@ -23,7 +23,7 @@ export async function getAdapter(connectionId: string): Promise<DatabaseAdapter>
   const existing = adapters.get(connectionId);
   if (existing) return existing;
 
-  const config = getConnection(connectionId);
+  const config = await getConnection(connectionId);
   if (!config) {
     throw new Error(`Connection "${connectionId}" not found in registry`);
   }

@@ -1,12 +1,50 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Message, ConversationTurn, ChatResponse } from "@/types/chat";
 import { v4 as uuid } from "uuid";
 
-export function useChat(databaseId: string = "demo") {
+export function useChat(
+  databaseId: string = "demo",
+  conversationId: string | null = null
+) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(conversationId);
+  const loadedConvRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!conversationId) {
+      if (loadedConvRef.current !== null) {
+        setMessages([]);
+        loadedConvRef.current = null;
+        setActiveConversationId(null);
+      }
+      return;
+    }
+    if (conversationId === loadedConvRef.current) return;
+
+    loadedConvRef.current = conversationId;
+    setActiveConversationId(conversationId);
+
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}`, {
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        if (data.messages && !controller.signal.aborted) {
+          setMessages(data.messages);
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+      }
+    })();
+    return () => controller.abort();
+  }, [conversationId]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -38,10 +76,16 @@ export function useChat(databaseId: string = "demo") {
             message: trimmed,
             conversationHistory: history,
             databaseId,
+            conversationId: activeConversationId,
           }),
         });
 
         const data: ChatResponse = await response.json();
+
+        if (data.conversationId && !activeConversationId) {
+          setActiveConversationId(data.conversationId);
+          loadedConvRef.current = data.conversationId;
+        }
 
         const assistantMsg: Message = {
           id: uuid(),
@@ -70,12 +114,20 @@ export function useChat(databaseId: string = "demo") {
         setIsLoading(false);
       }
     },
-    [messages, isLoading, databaseId]
+    [messages, isLoading, databaseId, activeConversationId]
   );
 
   const clearConversation = useCallback(() => {
     setMessages([]);
+    setActiveConversationId(null);
+    loadedConvRef.current = null;
   }, []);
 
-  return { messages, isLoading, sendMessage, clearConversation };
+  return {
+    messages,
+    isLoading,
+    sendMessage,
+    clearConversation,
+    activeConversationId,
+  };
 }

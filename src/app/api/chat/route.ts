@@ -16,11 +16,34 @@ import {
 } from "@/lib/db/connection-manager";
 import { QueryTimeoutError } from "@/lib/db/adapter";
 import { ChatRequest, ChatResponse } from "@/types/chat";
+import {
+  createConversation,
+  addMessage,
+} from "@/lib/db/conversation-repository";
+
+async function persistAndRespond(
+  conversationId: string | undefined,
+  response: ChatResponse
+): Promise<NextResponse> {
+  if (conversationId) {
+    await addMessage(conversationId, {
+      role: "assistant",
+      content: response.explanation || response.message || "",
+      sql: response.sql,
+      chart: response.chart as Record<string, unknown> | undefined,
+      followUps: response.followUps,
+      type: response.type,
+      resultSummary: response.resultSummary,
+    }).catch(() => {});
+  }
+  return NextResponse.json({ ...response, conversationId });
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body: ChatRequest = await request.json();
     const { message, conversationHistory, databaseId = "demo" } = body;
+    let { conversationId } = body;
 
     if (!message?.trim()) {
       return NextResponse.json(
@@ -29,7 +52,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Get adapter and schema for the selected database
+    if (!conversationId) {
+      const title =
+        message.trim().length > 50
+          ? message.trim().slice(0, 47) + "..."
+          : message.trim();
+      const conv = await createConversation(databaseId, title);
+      conversationId = conv.id;
+    }
+
+    await addMessage(conversationId, {
+      role: "user",
+      content: message.trim(),
+      type: "success",
+    });
+
     const adapter = await getAdapter(databaseId);
     const schema = await getSchemaForConnection(databaseId);
     const schemaSummary = pruneSchemaForContext(
@@ -39,14 +76,12 @@ export async function POST(request: NextRequest) {
     );
     const systemPrompt = buildSystemPrompt(schemaSummary, adapter.dialect);
 
-    // 2. Build messages with conversation context
     const { systemPrompt: system, messages } = buildMessagesForLLM(
       systemPrompt,
       conversationHistory || [],
       message
     );
 
-    // 3. Call LLM (with one retry if it fails to produce SQL)
     const callLLM = getLLMProvider();
     let parsed;
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -64,18 +99,18 @@ export async function POST(request: NextRequest) {
                 {
                   role: "user" as const,
                   content:
-                    "You did not respond with valid JSON containing a sql field. You MUST respond with ONLY a raw JSON object like: {\"sql\": \"SELECT ...\", \"explanation\": \"...\", ...}. No prose, no markdown. Try again.",
+                    'You did not respond with valid JSON containing a sql field. You MUST respond with ONLY a raw JSON object like: {"sql": "SELECT ...", "explanation": "...", ...}. No prose, no markdown. Try again.',
                 },
               ];
         llmRaw = await callLLM(system, msgs);
       } catch (error) {
         const errMsg =
           error instanceof Error ? error.message : "Failed to call AI";
-        return NextResponse.json({
+        return persistAndRespond(conversationId, {
           type: "error",
           message: `AI service error: ${errMsg}`,
           followUps: [],
-        } satisfies ChatResponse);
+        });
       }
 
       parsed = parseResponse(llmRaw);
@@ -85,45 +120,47 @@ export async function POST(request: NextRequest) {
     }
 
     if (!parsed) {
-      return NextResponse.json({
+      return persistAndRespond(conversationId, {
         type: "error",
-        message: "I wasn't able to generate a query for that. Could you rephrase?",
+        message:
+          "I wasn't able to generate a query for that. Could you rephrase?",
         followUps: [],
-      } satisfies ChatResponse);
+      });
     }
 
-    // 5. Handle clarification
     if (parsed.clarification_needed) {
-      return NextResponse.json({
+      return persistAndRespond(conversationId, {
         type: "clarification",
         message: parsed.clarification_question ?? undefined,
         followUps: [],
-      } satisfies ChatResponse);
+      });
     }
 
-    // 6. If no SQL generated after retries, return explanation
     if (!parsed.sql) {
-      return NextResponse.json({
+      if (parsed.explanation) {
+        return persistAndRespond(conversationId, {
+          type: "info",
+          message: parsed.explanation,
+          followUps: parsed.follow_up_suggestions,
+        });
+      }
+      return persistAndRespond(conversationId, {
         type: "error",
-        message:
-          parsed.explanation ||
-          "I wasn't able to generate a query for that. Could you rephrase?",
-        followUps: parsed.follow_up_suggestions,
-      } satisfies ChatResponse);
+        message: "I wasn't able to generate a query for that. Could you rephrase?",
+        followUps: [],
+      });
     }
 
-    // 7. Validate SQL
     const validation = validateSQL(parsed.sql);
     if (!validation.valid) {
-      return NextResponse.json({
+      return persistAndRespond(conversationId, {
         type: "error",
         message: `Safety check failed: ${validation.error}`,
         sql: parsed.sql,
         followUps: [],
-      } satisfies ChatResponse);
+      });
     }
 
-    // 8. Execute SQL via adapter (with one self-correction retry on column/table errors)
     let lastSql = parsed.sql;
     let lastExplanation = parsed.explanation;
     for (let execAttempt = 0; execAttempt < 2; execAttempt++) {
@@ -142,7 +179,7 @@ export async function POST(request: NextRequest) {
           lastSql
         );
 
-        return NextResponse.json({
+        return persistAndRespond(conversationId, {
           type: "success",
           sql: lastSql,
           explanation: lastExplanation ?? undefined,
@@ -150,10 +187,10 @@ export async function POST(request: NextRequest) {
           chart,
           followUps: parsed.follow_up_suggestions,
           resultSummary: summary,
-        } satisfies ChatResponse);
+        });
       } catch (dbError) {
         if (dbError instanceof QueryTimeoutError) {
-          return NextResponse.json({
+          return persistAndRespond(conversationId, {
             type: "error",
             message: dbError.message,
             sql: lastSql ?? undefined,
@@ -162,11 +199,13 @@ export async function POST(request: NextRequest) {
               "Try a simpler version of this query",
               "Add a date filter to narrow results",
             ],
-          } satisfies ChatResponse);
+          });
         }
 
         const errMsg =
-          dbError instanceof Error ? dbError.message : "Query execution failed";
+          dbError instanceof Error
+            ? dbError.message
+            : "Query execution failed";
 
         const isColumnError =
           /column .* does not exist|relation .* does not exist|no such column|no such table/i.test(
@@ -194,11 +233,11 @@ export async function POST(request: NextRequest) {
               }
             }
           } catch {
-            // retry failed, fall through to error response
+            // retry failed, fall through
           }
         }
 
-        return NextResponse.json({
+        return persistAndRespond(conversationId, {
           type: "error",
           message: `Query failed: ${errMsg}. Try rephrasing your question.`,
           sql: lastSql ?? undefined,
@@ -207,7 +246,7 @@ export async function POST(request: NextRequest) {
             "Show me all tables in the database",
             "How many customers do we have?",
           ],
-        } satisfies ChatResponse);
+        });
       }
     }
   } catch (error) {

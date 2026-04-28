@@ -8,7 +8,7 @@ export interface Message {
   data?: QueryResult;
   chart?: ChartRecommendation;
   followUps?: string[];
-  type: "success" | "error" | "clarification" | "loading";
+  type: "success" | "error" | "clarification" | "info" | "loading";
   resultSummary?: string;
 }
 
@@ -23,10 +23,11 @@ export interface ChatRequest {
   message: string;
   conversationHistory: ConversationTurn[];
   databaseId?: string;
+  conversationId?: string;
 }
 
 export interface ChatResponse {
-  type: "success" | "error" | "clarification";
+  type: "success" | "error" | "clarification" | "info";
   sql?: string;
   explanation?: string;
   message?: string;
@@ -34,4 +35,5 @@ export interface ChatResponse {
   chart?: ChartRecommendation;
   followUps: string[];
   resultSummary?: string;
+  conversationId?: string;
 }
