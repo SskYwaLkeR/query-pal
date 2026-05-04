@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Message, ConversationTurn, ChatResponse } from "@/types/chat";
 import { v4 as uuid } from "uuid";
 
@@ -11,31 +11,25 @@ export function useChat(
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(conversationId);
+  const [fetchedConvId, setFetchedConvId] = useState<string | null>(null);
 
-  // Tracks which conversationId already has messages loaded in state.
-  // Set by sendMessage (after API response) so that the subsequent pathname
-  // change to /c/[id] doesn't trigger a DB re-fetch — messages are already
-  // in state with full data (chart rows etc.) and we don't want to overwrite them.
-  const fetchedForRef = useRef<string | null>(null);
-
-  // True while we have a conversationId but haven't loaded messages yet.
-  // Computed so no setState fires synchronously in the effect.
-  const isLoadingConversation =
-    conversationId != null && fetchedForRef.current !== conversationId;
-
-  useEffect(() => {
+  // React-recommended pattern for syncing/resetting state when a prop changes,
+  // avoiding setState inside a useEffect.
+  // See: react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevConvId, setPrevConvId] = useState(conversationId);
+  if (prevConvId !== conversationId) {
+    setPrevConvId(conversationId);
+    setActiveConversationId(conversationId);
     if (!conversationId) {
       setMessages([]);
-      setActiveConversationId(null);
-      fetchedForRef.current = null;
-      return;
+      setFetchedConvId(null);
     }
+  }
 
-    setActiveConversationId(conversationId);
+  const isLoadingConversation = conversationId != null && fetchedConvId !== conversationId;
 
-    // Already populated by sendMessage — skip the DB fetch entirely.
-    // This is the key to zero-flicker navigation from / to /c/[id].
-    if (fetchedForRef.current === conversationId) return;
+  useEffect(() => {
+    if (!conversationId || fetchedConvId === conversationId) return;
 
     const controller = new AbortController();
 
@@ -44,18 +38,16 @@ export function useChat(
       .then((data) => {
         if (!data.messages) return;
         setMessages(data.messages);
-        fetchedForRef.current = conversationId;
+        setFetchedConvId(conversationId);
       })
       .catch((err) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
-        fetchedForRef.current = conversationId;
+        setFetchedConvId(conversationId);
         setMessages([]);
       });
 
     return () => controller.abort();
-    // No fetchedForRef reset in cleanup: layout never remounts between chat
-    // routes so refs persist. Reset only happens when conversationId → null.
-  }, [conversationId]);
+  }, [conversationId, fetchedConvId]);
 
   const sendMessage = useCallback(
     async (text: string): Promise<{ conversationId: string; isNew: boolean } | undefined> => {
@@ -92,11 +84,9 @@ export function useChat(
         const isNew = !activeConversationId && !!data.conversationId;
         if (data.conversationId) {
           if (!activeConversationId) setActiveConversationId(data.conversationId);
-          // Mark as fetched BEFORE the pathname changes to /c/[id].
-          // When the layout re-renders with the new conversationId, the effect
-          // sees fetchedForRef.current === conversationId and skips the DB fetch,
-          // preserving the full message with data/chart in state.
-          fetchedForRef.current = data.conversationId;
+          // Mark fetched BEFORE the pathname changes to /c/[id] so the effect
+          // skips the DB fetch and preserves full chart data already in state.
+          setFetchedConvId(data.conversationId);
         }
 
         setMessages((prev) => [
@@ -138,7 +128,7 @@ export function useChat(
   const clearConversation = useCallback(() => {
     setMessages([]);
     setActiveConversationId(null);
-    fetchedForRef.current = null;
+    setFetchedConvId(null);
   }, []);
 
   return {
