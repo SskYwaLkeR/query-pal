@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { DatabaseSelector } from "@/components/database-selector";
 import { DatabaseProvider, useDatabase } from "@/contexts/database-context";
 import { WelcomeModal } from "@/components/onboarding/welcome-modal";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
@@ -111,68 +112,77 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="flex items-center justify-between px-5 py-3 glass">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-              title={showHistory ? "Hide history" : "Show history"}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="w-4 h-4"
+        <TooltipProvider delay={400}>
+          <header className="flex items-center justify-between px-5 py-3 glass">
+            <div className="flex items-center gap-3">
+              <Tooltip>
+                <TooltipTrigger
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="w-4 h-4"
+                  >
+                    <path d="M12 8v4l3 3" />
+                    <circle cx="12" cy="12" r="9" />
+                  </svg>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {showHistory ? "Hide history" : "Show history"}
+                </TooltipContent>
+              </Tooltip>
+              <h1
+                onClick={handleNewChat}
+                className="text-lg font-bold bg-gradient-to-r from-[#f43f5e] to-[#6366f1] bg-clip-text text-transparent cursor-pointer"
               >
-                <path d="M12 8v4l3 3" />
-                <circle cx="12" cy="12" r="9" />
-              </svg>
-            </button>
-            <h1
-              onClick={handleNewChat}
-              className="text-lg font-bold bg-gradient-to-r from-[#f43f5e] to-[#6366f1] bg-clip-text text-transparent cursor-pointer"
-            >
-              QueryPal
-            </h1>
-            <DatabaseSelector />
-            <span className="text-xs text-primary/70 bg-primary/8 px-2.5 py-0.5 rounded-full">
-              {schema
-                ? `${schema.tables.length} table${schema.tables.length !== 1 ? "s" : ""}`
-                : "connecting..."}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleNewChat}
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-              title="New chat"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="w-4 h-4"
-              >
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </button>
-            <Link
-              href="/admin"
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors"
-              title="Manage connections"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </Link>
-            <ThemeToggle />
-          </div>
-        </header>
+                QueryPal
+              </h1>
+              <DatabaseSelector />
+              <span className="text-xs text-primary/70 bg-primary/8 px-2.5 py-0.5 rounded-full">
+                {schema
+                  ? `${schema.tables.length} table${schema.tables.length !== 1 ? "s" : ""}`
+                  : "connecting..."}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger
+                  onClick={handleNewChat}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="w-4 h-4"
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">New chat</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={<Link href="/admin" className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors" />}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Manage connections</TooltipContent>
+              </Tooltip>
+              <ThemeToggle />
+            </div>
+          </header>
+        </TooltipProvider>
 
         {isLoadingConversation ? (
           <div className="flex-1 flex items-center justify-center">
