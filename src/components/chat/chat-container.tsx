@@ -35,6 +35,7 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
   } = useChat(selectedDatabaseId, conversationId ?? null);
 
   const [showHistory, setShowHistory] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const prevDbId = useRef(selectedDatabaseId);
   const navigatedRef = useRef(false);
 
@@ -91,7 +92,7 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
 
   return (
     <div className="flex h-screen bg-background bg-grid-pattern">
-      <WelcomeModal onQuery={sendMessage} />
+      <WelcomeModal onQuery={sendMessage} open={showOnboarding} onClose={() => setShowOnboarding(false)} />
       {showHistory && (
         <>
           <div
@@ -150,6 +151,18 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
               </span>
             </div>
             <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger
+                  onClick={() => setShowOnboarding(true)}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-4M12 8h.01" />
+                  </svg>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">About QueryPal</TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger
                   onClick={handleNewChat}

@@ -18,21 +18,27 @@ const TABLES = ["customers", "orders", "order_items", "products", "support_ticke
 
 interface WelcomeModalProps {
   onQuery: (query: string) => void;
+  open?: boolean;
+  onClose?: () => void;
 }
 
-export function WelcomeModal({ onQuery }: WelcomeModalProps) {
-  const shouldShow = useSyncExternalStore(
+export function WelcomeModal({ onQuery, open, onClose }: WelcomeModalProps) {
+  const shouldAutoShow = useSyncExternalStore(
     () => () => {},
     () => !localStorage.getItem(STORAGE_KEY),
     () => false
   );
   const [dismissed, setDismissed] = useState(false);
 
-  if (!shouldShow || dismissed) return null;
+  const visible = open || (shouldAutoShow && !dismissed);
+  if (!visible) return null;
 
   function dismiss(query?: string) {
-    localStorage.setItem(STORAGE_KEY, "1");
-    setDismissed(true);
+    if (!open) {
+      localStorage.setItem(STORAGE_KEY, "1");
+      setDismissed(true);
+    }
+    onClose?.();
     if (query) onQuery(query);
   }
 
