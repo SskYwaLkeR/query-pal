@@ -80,7 +80,10 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
   const handleNewChat = () => { clearConversation(); router.push("/"); };
   const handleDelete = async (id: string) => {
     await deleteConversation(id);
-    if (id === conversationId) router.push("/");
+    if (id === conversationId) {
+      clearConversation();
+      router.push("/");
+    }
   };
 
   const hasMessages = messages.length > 0;
@@ -90,12 +93,10 @@ function ChatContainerInner({ conversationId }: { conversationId?: string }) {
       <WelcomeModal onQuery={sendMessage} />
       {showHistory && (
         <>
-          {/* Backdrop — mobile only */}
           <div
             className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
             onClick={() => setShowHistory(false)}
           />
-          {/* Sidebar — fixed overlay on mobile, inline on desktop */}
           <div className="fixed inset-y-0 left-0 z-50 flex md:static md:inset-auto md:z-auto">
             <ConversationSidebar
               conversations={conversations}
